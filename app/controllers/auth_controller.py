@@ -13,8 +13,10 @@ from app.models.auth import (
 )
 from app.services import (
     create_user,
+    create_revoked_token,
     read_user_by_email,
     update_user_password,
+    is_token_revoked,
 )
 from app.utils import (
     JWTBearer,
@@ -27,9 +29,12 @@ from app.utils import (
     verify_password,
 )
 
+from main import limiter
+
 router = APIRouter()
 
 @router.post("/auth/signup")
+@limiter.limit("25/minute")
 async def signup(user: User) -> JSONResponse:
     existing_user = await read_user_by_email(user.email)
     if existing_user:
@@ -58,6 +63,7 @@ async def signup(user: User) -> JSONResponse:
 
 
 @router.post("/auth/login")
+@limiter.limit("25/minute")
 async def login(login_request: Annotated[LoginRequest, Body()]) -> JSONResponse:
     user = await read_user_by_email(login_request.email)
     if user is None:
@@ -102,7 +108,32 @@ async def login(login_request: Annotated[LoginRequest, Body()]) -> JSONResponse:
     return response
 
 
+@router.post("/auth/logout")
+@limiter.limit("25/minute")
+async def logout(request: Request) -> JSONResponse:
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content=json_encoder({
+                "code": "missing_refresh_token",
+                "message": "No refresh token provided."
+            }),
+        )
+    await create_revoked_token(refresh_token)
+    response = JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content=json_encoder({
+            "code": "success",
+            "message": "Logout successful. Refresh token revoked."
+        }),
+    )
+    response.delete_cookie("refresh_token")
+    return response
+
+
 @router.post("/auth/account_exists")
+@limiter.limit("25/minute")
 async def account_exists(account_exists_request: AccountExistsRequest) -> JSONResponse:
     user = await read_user_by_email(account_exists_request.email)
     return JSONResponse(
@@ -118,6 +149,7 @@ async def account_exists(account_exists_request: AccountExistsRequest) -> JSONRe
 
 
 @router.post("/auth/change_password", dependencies=[Depends(JWTBearer())], tags=["auth"])
+@limiter.limit("25/minute")
 async def change_password(change_password_request: ChangePasswordRequest) -> JSONResponse:
     user = await read_user_by_email(change_password_request.email)
     if user is None:
@@ -155,6 +187,7 @@ async def change_password(change_password_request: ChangePasswordRequest) -> JSO
 
 
 @router.post("/auth/check_token")
+@limiter.limit("25/minute")
 async def check_token(verify_token_request: VerifyTokenRequest) -> JSONResponse:
     token = verify_token_request.token
     if not token:
@@ -208,6 +241,7 @@ async def check_token(verify_token_request: VerifyTokenRequest) -> JSONResponse:
 
 
 @router.post("/auth/refresh_token")
+@limiter.limit("25/minute")
 async def refresh_token_endpoint(request: Request) -> JSONResponse:
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
@@ -216,6 +250,14 @@ async def refresh_token_endpoint(request: Request) -> JSONResponse:
             content=json_encoder({
                 "code": "missing_refresh_token",
                 "message": "No refresh token provided."
+            }),
+        )
+    if await is_token_revoked(refresh_token):
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content=json_encoder({
+                "code": "token_revoked",
+                "message": "The refresh token has been revoked."
             }),
         )
     try:
