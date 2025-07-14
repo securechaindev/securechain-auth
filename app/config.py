@@ -12,7 +12,10 @@ class Settings(BaseSettings):
     VULN_DB_PASSWORD: str = ""
     ALGORITHM: str = ""
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 0
-    JWT_SECRET_KEY: str = ""
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 0
+    JWT_ACCESS_SECRET_KEY: str = ""
+    JWT_REFRESH_SECRET_KEY: str = ""
+    SECURE: bool = False # Set to True in production
 
     class Config:
         env_file = ".env"

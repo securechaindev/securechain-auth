@@ -2,29 +2,31 @@ from datetime import datetime, timedelta
 
 from fastapi import HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import jwt
-from jose.exceptions import JWTError
-from jwt.exceptions import InvalidTokenError
+from jwt import decode, encode
 
 from app.config import settings
 
 
-async def create_access_token(subject: str, expires_delta: int | None = None) -> str:
-    if expires_delta is not None:
-        expires_delta = datetime.now() + expires_delta
-    else:
-        expires_delta = datetime.now() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode = {"exp": expires_delta, "sub": str(subject)}
-    encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET_KEY, settings.ALGORITHM)
-    return encoded_jwt
+async def create_access_token(user_id: str) -> str:
+    expire = datetime.now() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    payload = {"user_id": str(user_id), "exp": expire}
+    return encode(payload, settings.JWT_SECRET_KEY, settings.ALGORITHM)
 
 
-def verify_access_token(access_token: str) -> bool:
-    try:
-        jwt.decode(access_token, settings.JWT_SECRET_KEY, settings.ALGORITHM)
-        return True
-    except (InvalidTokenError, JWTError):
-        return False
+async def create_refresh_token(user_id: str) -> str:
+    expire = datetime.now() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    payload = {"user_id": user_id, "exp": expire}
+    return encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def verify_access_token(token: str) -> bool:
+    payload = decode(token, settings.JWT_ACCESS_SECRET_KEY, settings.ALGORITHM)
+    return payload
+
+
+def verify_refresh_token(token: str) -> bool:
+    payload = decode(token, settings.JWT_REFRESH_SECRET_KEY, settings.ALGORITHM)
+    return payload
 
 
 class JWTBearer(HTTPBearer):
