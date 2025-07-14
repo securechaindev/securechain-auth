@@ -30,5 +30,7 @@ def get_collection(collection_name: str) -> AsyncIOMotorCollection:
             return depex_db.get_collection(collection_name)
         case "smt_text":
             return depex_db.get_collection(collection_name)
+        case "revoked_tokens":
+            return depex_db.get_collection(collection_name)
         case "vulnerabilities":
             return osv_db.get_collection(collection_name)

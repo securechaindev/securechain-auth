@@ -16,6 +16,11 @@ async def create_user(user: dict[str, str]) -> None:
         result = await session.run(query, user_id=user_id)
 
 
+async def create_revoked_token(token: str) -> None:
+    revoked_tokens_collection = get_collection("revoked_tokens")
+    await revoked_tokens_collection.insert_one({"token": token})
+
+
 async def read_user_by_email(email: str) -> dict[str, str]:
     users_collection = get_collection("users")
     return await users_collection.find_one({"email": email})
@@ -24,3 +29,9 @@ async def read_user_by_email(email: str) -> dict[str, str]:
 async def update_user_password(user: dict[str, Any]) -> None:
     users_collection = get_collection("users")
     return await users_collection.update_one({"email": user["email"]}, {"$set": {"password": user["password"]}})
+
+
+async def is_token_revoked(token: str) -> bool:
+    revoked_tokens_collection = get_collection("revoked_tokens")
+    revoked_token = await revoked_tokens_collection.find_one({"token": token})
+    return revoked_token is not None
