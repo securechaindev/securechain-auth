@@ -10,22 +10,31 @@ from app.config import settings
 async def create_access_token(user_id: str) -> str:
     expire = datetime.now() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     payload = {"user_id": str(user_id), "exp": expire}
-    return encode(payload, settings.JWT_SECRET_KEY, settings.ALGORITHM)
+    return encode(payload, settings.JWT_ACCESS_SECRET_KEY, algorithms=[settings.ALGORITHM])
 
 
 async def create_refresh_token(user_id: str) -> str:
     expire = datetime.now() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     payload = {"user_id": user_id, "exp": expire}
-    return encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.ALGORITHM)
+    return encode(payload, settings.JWT_REFRESH_SECRET_KEY, algorithms=[settings.ALGORITHM])
+
+
+async def read_expiration_date(refresh_token: str) -> datetime:
+    try:
+        payload = decode(refresh_token, settings.JWT_REFRESH_SECRET_KEY, algorithms=[settings.ALGORITHM])
+        expires_at = datetime.fromtimestamp(payload["exp"])
+    except Exception:
+        expires_at = datetime.now()
+    return expires_at
 
 
 def verify_access_token(token: str) -> bool:
-    payload = decode(token, settings.JWT_ACCESS_SECRET_KEY, settings.ALGORITHM)
+    payload = decode(token, settings.JWT_ACCESS_SECRET_KEY, algorithms=[settings.ALGORITHM])
     return payload
 
 
 def verify_refresh_token(token: str) -> bool:
-    payload = decode(token, settings.JWT_REFRESH_SECRET_KEY, settings.ALGORITHM)
+    payload = decode(token, settings.JWT_REFRESH_SECRET_KEY, algorithms=[settings.ALGORITHM])
     return payload
 
 
