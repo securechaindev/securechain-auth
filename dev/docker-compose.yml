@@ -21,4 +21,6 @@ services:
 
 networks:
   securechain:
+    name: securechain
+    external: true
     driver: bridge
