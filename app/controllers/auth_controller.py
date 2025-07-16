@@ -1,9 +1,10 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, status, Request
+from fastapi import APIRouter, Body, Depends, Request, status
 from fastapi.responses import JSONResponse
-from jwt.exceptions import InvalidTokenError, ExpiredSignatureError
+from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 
+from app.limiter import limiter
 from app.schemas.auth import (
     AccountExistsRequest,
     ChangePasswordRequest,
@@ -12,25 +13,23 @@ from app.schemas.auth import (
     VerifyTokenRequest,
 )
 from app.services import (
-    create_user,
     create_revoked_token,
+    create_user,
+    is_token_revoked,
     read_user_by_email,
     update_user_password,
-    is_token_revoked,
 )
 from app.utils import (
     JWTBearer,
     create_access_token,
     create_refresh_token,
-    read_expiration_date,
     get_hashed_password,
     json_encoder,
+    read_expiration_date,
     verify_access_token,
-    verify_refresh_token,
     verify_password,
+    verify_refresh_token,
 )
-
-from app.limiter import limiter
 
 router = APIRouter()
 
@@ -88,7 +87,7 @@ async def login(request: Request, login_request: Annotated[LoginRequest, Body()]
                     "message": "User with this email does not exist"}
             ),
         )
-    hashed_pass = user["password"]
+    hashed_pass = user.password
     if not await verify_password(login_request.password, hashed_pass):
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -99,13 +98,14 @@ async def login(request: Request, login_request: Annotated[LoginRequest, Body()]
                 }
             ),
         )
-    access_token = await create_access_token(user["_id"])
-    refresh_token = await create_refresh_token(user["_id"])
+    user_id = str(user.id)
+    access_token = await create_access_token(user_id)
+    refresh_token = await create_refresh_token(user_id)
     response = JSONResponse(
         status_code=status.HTTP_200_OK,
         content=json_encoder({
             "access_token": access_token,
-            "user_id": user["_id"],
+            "user_id": user_id,
             "code": "success",
             "message": "Login successful"
         }),
@@ -195,7 +195,7 @@ async def change_password(request: Request, change_password_request: ChangePassw
                 }
             ),
         )
-    if not await verify_password(change_password_request.old_password, user["password"]):
+    if not await verify_password(change_password_request.old_password, user.password):
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content=json_encoder(
@@ -206,7 +206,7 @@ async def change_password(request: Request, change_password_request: ChangePassw
             ),
         )
     encrypted_password = await get_hashed_password(change_password_request.new_password)
-    user["password"] = encrypted_password
+    user.password = encrypted_password
     await update_user_password(user)
     return JSONResponse(
         status_code=status.HTTP_200_OK,
