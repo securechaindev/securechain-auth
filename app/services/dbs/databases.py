@@ -1,8 +1,8 @@
 from functools import lru_cache
 
-from odmantic import AIOEngine
 from motor.motor_asyncio import AsyncIOMotorClient
 from neo4j import AsyncDriver, AsyncGraphDatabase
+from odmantic import AIOEngine
 
 from app.config import settings
 
@@ -19,5 +19,5 @@ def get_graph_db_driver() -> AsyncDriver:
 def get_odmantic_engine() -> AIOEngine:
     return AIOEngine(
         client=AsyncIOMotorClient(settings.VULN_DB_URI),
-        database="depex"
+        database="securechain"
     )

@@ -1,8 +1,11 @@
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import patch, AsyncMock
 from fastapi.testclient import TestClient
-from app.main import app
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
+
+from app.main import app
+from app.models.auth import User
 
 client = TestClient(app)
 
@@ -28,7 +31,7 @@ def test_signup_user_exists():
 
 
 @pytest.mark.parametrize("password,status_code,error_message", [
-    ("weak", 422, "String should have at least 8 characters"),
+    ("weak", 422, "Value error, the password must be between 8 and 20 characters"),
     ("weakkaew", 422, "Value error, the password must contain at least one capital letter"),
     ("weAkkaew", 422, "Value error, the password must contain at least one digit"),
     ("1weAkkaew", 422, "Value error, the password must contain at least one special character")
@@ -60,7 +63,7 @@ def test_login_user_not_exist():
 
 
 def test_login_wrong_password():
-    with patch("app.controllers.auth_controller.read_user_by_email", new=AsyncMock(return_value={"_id": "1", "password": "hashed"})), \
+    with patch("app.controllers.auth_controller.read_user_by_email", new=AsyncMock(return_value=User(email= "test@example.com", password="hashed"))), \
          patch("app.controllers.auth_controller.verify_password", new=AsyncMock(return_value=False)):
         response = client.post("/auth/login", json={"email": "test@example.com", "password": "15pAssword*"})
         assert response.status_code == 400
@@ -69,7 +72,7 @@ def test_login_wrong_password():
 
 
 def test_login_success():
-    with patch("app.controllers.auth_controller.read_user_by_email", new=AsyncMock(return_value={"_id": "1", "password": "hashed"})), \
+    with patch("app.controllers.auth_controller.read_user_by_email", new=AsyncMock(return_value=User(email= "test@example.com", password="hashed"))), \
          patch("app.controllers.auth_controller.verify_password", new=AsyncMock(return_value=True)), \
          patch("app.controllers.auth_controller.create_access_token", new=AsyncMock(return_value="access")), \
          patch("app.controllers.auth_controller.create_refresh_token", new=AsyncMock(return_value="refresh")):
@@ -135,7 +138,7 @@ def test_change_password_user_not_exist():
 def test_change_password_invalid_old_password():
     headers = {"Authorization": "Bearer faketoken"}
     with patch("app.utils.jwt_encoder.verify_access_token", return_value={"user_id": "abc123"}), \
-         patch("app.controllers.auth_controller.read_user_by_email", new=AsyncMock(return_value={"email": "test@example.com", "password": "hashed"})), \
+         patch("app.controllers.auth_controller.read_user_by_email", new=AsyncMock(return_value=User(email="test@example.com", password="hashed"))), \
          patch("app.controllers.auth_controller.verify_password", new=AsyncMock(return_value=False)):
         response = client.post("/auth/change_password", json={"email": "test@example.com", "old_password": "15pAssword*", "new_password": "14pAssword*"}, headers=headers)
         assert response.status_code == 400
@@ -146,7 +149,7 @@ def test_change_password_invalid_old_password():
 def test_change_password_success():
     headers = {"Authorization": "Bearer faketoken"}
     with patch("app.utils.jwt_encoder.verify_access_token", return_value={"user_id": "abc123"}), \
-         patch("app.controllers.auth_controller.read_user_by_email", new=AsyncMock(return_value={"email": "test@example.com", "password": "hashed"})), \
+         patch("app.controllers.auth_controller.read_user_by_email", new=AsyncMock(return_value=User(email="test@example.com", password="hashed"))), \
          patch("app.controllers.auth_controller.verify_password", new=AsyncMock(return_value=True)), \
          patch("app.controllers.auth_controller.get_hashed_password", new=AsyncMock(return_value="new_hashed")), \
          patch("app.controllers.auth_controller.update_user_password", new=AsyncMock()):
@@ -161,7 +164,7 @@ def test_check_token_missing():
     headers = {"Authorization": "Bearer faketoken"}
     with patch("app.utils.jwt_encoder.verify_access_token", return_value={"user_id": "abc123"}):
         response = client.post("/auth/check_token", json={"token": ""}, headers=headers)
-        assert response.status_code == 400  
+        assert response.status_code == 400
         assert response.json()["code"] == "token_missing"
         assert response.json()["message"] == "No token was provided"
 
@@ -215,7 +218,8 @@ def test_refresh_token_revoked():
         response = client.post("/auth/refresh_token", cookies=cookies, headers=headers)
         assert response.status_code == 401
         assert response.json()["code"] == "token_revoked"
-        assert response.json()["message"] == "The refresh token has been revoked"   
+        assert response.json()["message"] == "The refresh token has been revoked"
+
 
 def test_refresh_token_success():
     headers = {"Authorization": "Bearer faketoken"}
@@ -225,6 +229,7 @@ def test_refresh_token_success():
          patch("app.controllers.auth_controller.create_access_token", new=AsyncMock(return_value="new_access")):
         cookies = {"refresh_token": "validtoken"}
         response = client.post("/auth/refresh_token", cookies=cookies, headers=headers)
+        print(response.json())
         assert response.status_code == 200
         assert response.json()["code"] == "success"
         assert "access_token" in response.json()

@@ -1,8 +1,11 @@
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from app.models.auth import RevokedToken, User
 from app.services import auth_service
-from app.models.auth import User, RevokedToken
+
 
 @pytest.mark.asyncio
 async def test_create_user_saves_user_and_creates_graph():
@@ -39,14 +42,14 @@ async def test_read_user_by_email_returns_user():
 async def test_update_user_password_updates_and_saves():
     fake_user_doc = User(email="test@example.com", password="oldpasS1*")
     with patch("app.services.auth_service.get_odmantic_engine", return_value=AsyncMock(find_one=AsyncMock(return_value=fake_user_doc), save=AsyncMock())) as mock_get_engine:
-        await auth_service.update_user_password({"email": "test@example.com", "password": "newpasS1*"})
+        await auth_service.update_user_password(User(email="test@example.com", password="newpasS1*"))
         assert fake_user_doc.password == "newpasS1*"
         mock_get_engine.return_value.save.assert_called_once_with(fake_user_doc)
 
 @pytest.mark.asyncio
 async def test_update_user_password_user_not_found():
     with patch("app.services.auth_service.get_odmantic_engine", return_value=AsyncMock(find_one=AsyncMock(return_value=None), save=AsyncMock())) as mock_get_engine:
-        await auth_service.update_user_password({"email": "notfound@example.com", "password": "newpass1*"})
+        await auth_service.update_user_password(User(email="notfound@example.com", password="newpass1*"))
         mock_get_engine.return_value.save.assert_not_called()
 
 @pytest.mark.asyncio

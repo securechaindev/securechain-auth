@@ -1,4 +1,4 @@
-from .User import User
 from .RevokedToken import RevokedToken
+from .User import User
 
-__all__ = ["User", "RevokedToken"]
+__all__ = ["RevokedToken", "User"]

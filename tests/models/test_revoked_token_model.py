@@ -1,7 +1,8 @@
-from app.models.auth.RevokedToken import RevokedToken
-from odmantic import Model
 from datetime import datetime
-import pytest
+
+from odmantic import Model
+
+from app.models.auth.RevokedToken import RevokedToken
 
 
 def test_revoked_token_model_fields():

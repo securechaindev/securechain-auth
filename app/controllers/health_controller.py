@@ -1,9 +1,8 @@
-from fastapi import APIRouter, status, Request
+from fastapi import APIRouter, Request, status
 from fastapi.responses import JSONResponse
 
-from app.utils import json_encoder
-
 from app.limiter import limiter
+from app.utils import json_encoder
 
 router = APIRouter()
 

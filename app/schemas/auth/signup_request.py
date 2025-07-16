@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator, EmailStr
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.schemas.patterns import EMAIL_PATTERN
 from app.schemas.validators import validate_password
@@ -12,8 +12,6 @@ class SignUpRequest(BaseModel):
     )
     password: str = Field(
         ...,
-        min_length=8,
-        max_length=20,
         description="User's password."
     )
 

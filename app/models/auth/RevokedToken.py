@@ -1,5 +1,6 @@
-from odmantic import Model
 from datetime import datetime
+
+from odmantic import Model
 
 
 class RevokedToken(Model):

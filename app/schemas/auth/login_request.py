@@ -1,11 +1,11 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.schemas.patterns import EMAIL_PATTERN
 from app.schemas.validators import validate_password
 
 
 class LoginRequest(BaseModel):
-    email: str = Field(
+    email: EmailStr = Field(
         ...,
         pattern=EMAIL_PATTERN,
         description="User's email address."

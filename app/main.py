@@ -2,6 +2,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException
 from starlette.middleware.cors import CORSMiddleware
 
@@ -11,11 +13,9 @@ from app.exception_handler import (
     unhandled_exception_handler,
 )
 from app.http_session import close_session
+from app.limiter import limiter
 from app.middleware import log_request_middleware
 from app.router import api_router
-from app.limiter import limiter
-from slowapi import _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
 
 DESCRIPTION = """
 A simple user registry backend for Secure Chain tools.

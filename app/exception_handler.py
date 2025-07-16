@@ -33,8 +33,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
 
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     url = f"{request.url.path}?{request.query_params}" if request.query_params else request.url.path
-    exception_type, exception_value, _ = exc_info()
-    exception_name = getattr(exception_type, "__name__", None)
+    _, exception_value, _ = exc_info()
     detail = {
         "code": "internal_error",
         "message": str(exception_value),
