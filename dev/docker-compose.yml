@@ -1,0 +1,24 @@
+services:
+  user_backend:
+    container_name: user_backend
+    build:
+      context: ..
+      dockerfile: dev/Dockerfile
+    volumes:
+      - ../app:/app
+    env_file:
+      - ../app/.env
+    ports:
+      - '8001:8000'
+    networks:
+      - securechain
+    healthcheck:
+      test: curl --fail http://localhost:8000/health || exit 1
+      interval: 100s
+      timeout: 100s
+      retries: 10
+      start_period: 300s
+
+networks:
+  securechain:
+    driver: bridge
