@@ -51,5 +51,5 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/login-service:latest
-            ghcr.io/${{ github.repository_owner }}/login-service:${{ steps.get_variables.outputs.VERSION }}
+            ghcr.io/${{ github.repository_owner }}/securechain-user-login:latest
+            ghcr.io/${{ github.repository_owner }}/securechain-user-login:${{ steps.get_variables.outputs.VERSION }}
