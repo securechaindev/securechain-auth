@@ -18,7 +18,7 @@ from app.middleware import log_request_middleware
 from app.router import api_router
 
 DESCRIPTION = """
-A simple user registry backend for Secure Chain tools.
+A simple user registry backend for Secure Chain tools, built with FastAPI. This service provides user authentication, registration, password management, and token-based security.
 """
 
 @asynccontextmanager
@@ -27,17 +27,17 @@ async def lifespan(_: FastAPI):
     await close_session()
 
 app = FastAPI(
-    title="SecureChain User Backend",
-    version="1.0.0",
+    title="Secure Chain User Backend",
+    version="1.0.2",
     description=DESCRIPTION,
     contact={
-        "name": "SecureChain Team",
+        "name": "Secure Chain Team",
         "url": "https://github.com/securechaindev",
         "email": "hi@securechain.dev",
     },
     license_info={
-        "name": "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
-        "url": "https://www.gnu.org/licenses/gpl-3.0.html",
+        "name": "License :: OSI Approved :: Apache Software License",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0",
     },
     lifespan=lifespan
 )
