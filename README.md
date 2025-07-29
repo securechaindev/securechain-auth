@@ -1,4 +1,4 @@
-# Secure Chain User Backend
+# Secure Chain Auth
 
 A simple user registry backend for Secure Chain tools, built with FastAPI. This service provides user authentication, registration, password management, and token-based security, with support for MongoDB and Neo4j databases.
 
