@@ -2,71 +2,58 @@
 
 A simple user registry backend for Secure Chain tools, built with FastAPI. This service provides user authentication, registration, password management, and token-based security, with support for MongoDB and Neo4j databases.
 
-## Requirements
-- Python 3.10+
-- MongoDB & MongoDB Compass
-- Neo4j
-- Docker
+## Development requirements
+
+1. [Docker](https://www.docker.com/) to deploy the tool.
+2. [Docker Compose](https://docs.docker.com/compose/) for container orchestration.
+3. It is recommended to use a GUI such as [MongoDB Compass](https://www.mongodb.com/en/products/compass).
+4. Python 3.13 or higher.
 
 ## Setup development profile
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/securechaindev/login_backend.git
-cd login_backend
+git clone https://github.com/securechaindev/securechain-auth.git
+cd securechain-auth
 ```
 
-### 2. Install dependencies
+### 2. Configure environment variables
+Create a `.env` file from the `template.env` file and place it in the `app/` directory. Modify the **Json Web Token (JWT)** secret key and algorithm with your own. You can generate your own secret key with the command **openssl rand -base64 32**.
+
+### 3. Create Docker network
+Ensure you have the `securechain` Docker network created. If not, create it with:
 ```bash
-python -m venv securechain-login-env
-source securechain-login-env/bin/activate
-pip install -r requirements.txt
+docker network create securechain
 ```
 
-### 3. Configure environment variables
-Copy the template and fill in your secrets:
+### 4. Start the application
+Run the command from the project root:
 ```bash
-cp template.env app/.env
-```
-Edit `.env` with your database URIs, credentials, and JWT secrets. Example:
-```
-GRAPH_DB_URI='bolt://localhost:7687'
-VULN_DB_URI='mongodb://mongoSecureChain:mongoSecureChain@localhost:27017/admin'
-GRAPH_DB_USER='neo4j'
-GRAPH_DB_PASSWORD='neoSecureChain'
-VULN_DB_USER='mongoSecureChain'
-VULN_DB_PASSWORD='mongoSecureChain'
-ALGORITHM='HS256'
-ACCESS_TOKEN_EXPIRE_MINUTES=15
-REFRESH_TOKEN_EXPIRE_DAYS=7
-JWT_ACCESS_SECRET_KEY='your_access_secret_key'
-JWT_REFRESH_SECRET_KEY='your_refresh_secret_key'
-SECURE=False # Set to True in production
-```
-You can generate secure keys with:
-```bash
-openssl rand -base64 32
+docker compose -f dev/docker-compose.yml up --build
 ```
 
-### 4. Build and run with Docker Compose as dev
-```bash
-docker-compose -f dev/docker-compose.yml up --build
-```
-This will build the backend and expose it on port 8001 (mapped to 8000 inside the container).
+### 5. Access the application
+The API will be available at [http://localhost:8001](http://localhost:8002). You can access the API documentation at [http://localhost:8001/docs](http://localhost:8002/docs).
 
-## API Overview
+## Python Environment
+The project uses Python 3.13 and the dependencies are listed in `requirements.txt`.
 
-### Authentication Endpoints
-- `POST /auth/signup` — Register a new user
-- `POST /auth/login` — Login and receive access/refresh tokens
-- `POST /auth/logout` — Logout and revoke refresh token
-- `POST /auth/account_exists` — Check if an account exists
-- `POST /auth/change_password` — Change user password
-- `POST /auth/check_token` — Verify access token
-- `POST /auth/refresh_token` — Refresh access token
+### Setting up the development environment
 
-### Health Check
-- `GET /health` — Returns `{ "code": "healthy" }` if the service is running
+1. **Create a virtual environment**:
+   ```bash
+   python3.13 -m venv auth-env
+   ```
+
+2. **Activate the virtual environment**:
+   ```bash
+   source auth-env/bin/activate
+   ```
+
+3. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 ## Testing
 
@@ -84,7 +71,7 @@ pytest tests
 Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
 
 ## License
-[Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0)
+[GNU General Public License 3.0](https://www.gnu.org/licenses/gpl-3.0.html)
 
 ## Links
 - [Secure Chain Team](mailto:hi@securechain.dev)

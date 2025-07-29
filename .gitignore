@@ -2,7 +2,6 @@
 .vscode
 .envrc
 .envr
-securechain-login-env
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -115,6 +114,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+auth-env/
 
 # Spyder project settings
 .spyderproject
