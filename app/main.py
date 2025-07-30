@@ -7,6 +7,7 @@ from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException
 from starlette.middleware.cors import CORSMiddleware
 
+from app.config import settings
 from app.exception_handler import (
     http_exception_handler,
     request_validation_exception_handler,
@@ -48,7 +49,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.middleware("http")(log_request_middleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
