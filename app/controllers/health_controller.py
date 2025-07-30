@@ -11,7 +11,7 @@ router = APIRouter()
     summary="Health Check",
     description="Check the status of the API.",
     response_description="API status.",
-    tags=["health"]
+    tags=["Secure Chain Auth Health"]
 )
 @limiter.limit("25/minute")
 def health_check(request: Request) -> JSONResponse:

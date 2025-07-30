@@ -34,11 +34,11 @@ from app.utils import (
 router = APIRouter()
 
 @router.post(
-    "/auth/signup",
+    "/signup",
     summary="User Signup",
     description="Create a new user account.",
     response_description="User created successfully.",
-    tags=["auth"]
+    tags=["Secure Chain Auth"]
 )
 @limiter.limit("25/minute")
 async def signup(request: Request, sign_up_request: SignUpRequest) -> JSONResponse:
@@ -69,11 +69,11 @@ async def signup(request: Request, sign_up_request: SignUpRequest) -> JSONRespon
 
 
 @router.post(
-    "/auth/login",
+    "/login",
     summary="User Login",
     description="Authenticate a user with email and password.",
     response_description="Access token and user data.",
-    tags=["auth"]
+    tags=["Secure Chain Auth"]
 )
 @limiter.limit("25/minute")
 async def login(request: Request, login_request: Annotated[LoginRequest, Body()]) -> JSONResponse:
@@ -122,12 +122,12 @@ async def login(request: Request, login_request: Annotated[LoginRequest, Body()]
 
 
 @router.post(
-    "/auth/logout",
+    "/logout",
     summary="User Logout",
     description="Log out a user and revoke their refresh token.",
     response_description="Logout successful.",
     dependencies=[Depends(JWTBearer())],
-    tags=["auth"]
+    tags=["Secure Chain Auth"]
 )
 @limiter.limit("25/minute")
 async def logout(request: Request) -> JSONResponse:
@@ -153,11 +153,11 @@ async def logout(request: Request) -> JSONResponse:
 
 
 @router.post(
-    "/auth/account_exists",
+    "/account_exists",
     summary="User Account Existence Check",
     description="Check if a user account exists with the given email.",
     response_description="User existence status.",
-    tags=["auth"]
+    tags=["Secure Chain Auth"]
 )
 @limiter.limit("25/minute")
 async def account_exists(request: Request, account_exists_request: AccountExistsRequest) -> JSONResponse:
@@ -175,12 +175,12 @@ async def account_exists(request: Request, account_exists_request: AccountExists
 
 
 @router.post(
-    "/auth/change_password",
+    "/change_password",
     summary="User Change Password",
     description="Change the password for a user.",
     response_description="Password change status.",
     dependencies=[Depends(JWTBearer())],
-    tags=["auth"],
+    tags=["Secure Chain Auth"],
 )
 @limiter.limit("25/minute")
 async def change_password(request: Request, change_password_request: ChangePasswordRequest) -> JSONResponse:
@@ -220,12 +220,12 @@ async def change_password(request: Request, change_password_request: ChangePassw
 
 
 @router.post(
-    "/auth/check_token",
+    "/check_token",
     summary="User Token Verification",
     description="Verify the validity of a user token.",
     response_description="Token verification status.",
     dependencies=[Depends(JWTBearer())],
-    tags=["auth"],
+    tags=["Secure Chain Auth"],
 )
 @limiter.limit("25/minute")
 async def check_token(request: Request, verify_token_request: VerifyTokenRequest) -> JSONResponse:
@@ -280,12 +280,12 @@ async def check_token(request: Request, verify_token_request: VerifyTokenRequest
 
 
 @router.post(
-    "/auth/refresh_token",
+    "/refresh_token",
     summary="User Refresh Token",
     description="Refresh a user's access token using a refresh token.",
     response_description="New access token.",
     dependencies=[Depends(JWTBearer())],
-    tags=["auth"],
+    tags=["Secure Chain Auth"],
 )
 @limiter.limit("25/minute")
 async def refresh_token_endpoint(request: Request) -> JSONResponse:
