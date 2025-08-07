@@ -284,7 +284,6 @@ async def check_token(request: Request, verify_token_request: VerifyTokenRequest
     summary="User Refresh Token",
     description="Refresh a user's access token using a refresh token.",
     response_description="New access token.",
-    dependencies=[Depends(JWTBearer())],
     tags=["Secure Chain Auth"],
 )
 @limiter.limit("25/minute")
