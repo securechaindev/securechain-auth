@@ -224,7 +224,6 @@ async def change_password(request: Request, change_password_request: ChangePassw
     summary="User Token Verification",
     description="Verify the validity of a user token.",
     response_description="Token verification status.",
-    dependencies=[Depends(JWTBearer())],
     tags=["Secure Chain Auth"],
 )
 @limiter.limit("25/minute")
