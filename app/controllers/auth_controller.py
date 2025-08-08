@@ -105,7 +105,6 @@ async def login(request: Request, login_request: Annotated[LoginRequest, Body()]
     response = JSONResponse(
         status_code=status.HTTP_200_OK,
         content=json_encoder({
-            "access_token": access_token,
             "user_id": user_id,
             "code": "success",
             "message": "Login successful"
@@ -316,14 +315,22 @@ async def refresh_token_endpoint(request: Request) -> JSONResponse:
     try:
         payload = await verify_refresh_token(refresh_token)
         new_access_token = await create_access_token(payload["user_id"])
-        return JSONResponse(
+        response = JSONResponse(
             status_code=status.HTTP_200_OK,
             content=json_encoder({
-                "access_token": new_access_token,
                 "code": "success",
                 "message": "Access token refreshed"
             }),
         )
+        response.set_cookie(
+            key="access_token",
+            value=new_access_token,
+            httponly=True,
+            secure=settings.SECURE,
+            samesite="none" if settings.SECURE else "lax",
+            max_age=60 * 15
+        )
+        return response
     except ExpiredSignatureError:
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
