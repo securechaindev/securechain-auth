@@ -4,6 +4,7 @@ from fastapi import APIRouter, Body, Depends, Request, status
 from fastapi.responses import JSONResponse
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 
+from app.config import settings
 from app.limiter import limiter
 from app.schemas.auth import (
     AccountExistsRequest,
@@ -19,7 +20,6 @@ from app.services import (
     read_user_by_email,
     update_user_password,
 )
-from app.config import settings
 from app.utils import (
     JWTBearer,
     create_access_token,
