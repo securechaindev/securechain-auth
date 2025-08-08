@@ -19,6 +19,7 @@ from app.services import (
     read_user_by_email,
     update_user_password,
 )
+from app.config import settings
 from app.utils import (
     JWTBearer,
     create_access_token,
@@ -111,11 +112,19 @@ async def login(request: Request, login_request: Annotated[LoginRequest, Body()]
         }),
     )
     response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=settings.SECURE,
+        samesite="none" if settings.SECURE else "lax",
+        max_age=60 * 15
+    )
+    response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=True,
-        samesite="strict",
+        secure=settings.SECURE,
+        samesite="none" if settings.SECURE else "lax",
         max_age=60 * 60 * 24 * 7
     )
     return response

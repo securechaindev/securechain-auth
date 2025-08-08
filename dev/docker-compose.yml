@@ -1,6 +1,6 @@
 services:
-  securechain-user-login:
-    container_name: securechain-user-login
+  securechain-auth:
+    container_name: securechain-auth
     build:
       context: ..
       dockerfile: dev/Dockerfile
