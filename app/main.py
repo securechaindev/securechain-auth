@@ -29,6 +29,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(
     title="Secure Chain User Backend",
+    docs_url=settings.DOCS_URL,
     version="1.0.2",
     description=DESCRIPTION,
     contact={
@@ -49,7 +50,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.middleware("http")(log_request_middleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=settings.SERVICES_ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

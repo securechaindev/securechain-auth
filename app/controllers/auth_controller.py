@@ -110,16 +110,16 @@ async def login(request: Request, login_request: Annotated[LoginRequest, Body()]
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=settings.SECURE,
-        samesite="none" if settings.SECURE else "lax",
+        secure=settings.SECURE_COOKIES,
+        samesite="none" if settings.SECURE_COOKIES else "lax",
         max_age=60 * 15
     )
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=settings.SECURE,
-        samesite="none" if settings.SECURE else "lax",
+        secure=settings.SECURE_COOKIES,
+        samesite="none" if settings.SECURE_COOKIES else "lax",
         max_age=60 * 60 * 24 * 7
     )
     return response
@@ -308,8 +308,8 @@ async def refresh_token_endpoint(request: Request) -> JSONResponse:
             key="access_token",
             value=new_access_token,
             httponly=True,
-            secure=settings.SECURE,
-            samesite="none" if settings.SECURE else "lax",
+            secure=settings.SECURE_COOKIES,
+            samesite="none" if settings.SECURE_COOKIES else "lax",
             max_age=60 * 15
         )
         return response

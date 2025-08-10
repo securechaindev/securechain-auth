@@ -10,8 +10,9 @@ class Settings(BaseSettings):
     VULN_DB_URI: str = ""
     VULN_DB_USER: str = ""
     VULN_DB_PASSWORD: str = ""
-    ALLOWED_ORIGINS: list[str] = []
-    SECURE: bool = True
+    DOCS_URL: str | None = None
+    SERVICES_ALLOWED_ORIGINS: list[str] = []
+    SECURE_COOKIES: bool = True
     ALGORITHM: str = ""
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 0
     REFRESH_TOKEN_EXPIRE_DAYS: int = 0
