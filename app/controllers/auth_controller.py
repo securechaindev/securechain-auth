@@ -137,6 +137,7 @@ async def logout(request: Request) -> JSONResponse:
         }),
     )
     response.delete_cookie("refresh_token")
+    response.delete_cookie("access_token")
     return response
 
 
