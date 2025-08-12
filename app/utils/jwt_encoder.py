@@ -1,11 +1,22 @@
 from datetime import datetime, timedelta
 from typing import Any
 
-from fastapi import HTTPException, Request, status
+from fastapi import HTTPException, Request, Response, status
 from jwt import decode, encode
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 
 from app.config import settings
+
+
+async def set_auth_cookies(resp: Response, access_token: str, refresh_token: str) -> None:
+    common = {
+        "httponly": True,
+        "secure": settings.SECURE_COOKIES,
+        "samesite": "none" if settings.SECURE_COOKIES else "lax",
+        "path": "/",
+    }
+    resp.set_cookie("access_token",  access_token, max_age=60 * settings.ACCESS_TOKEN_EXPIRE_MINUTES, **common)
+    resp.set_cookie("refresh_token", refresh_token, max_age=60 * 60 * 24 * settings.REFRESH_TOKEN_EXPIRE_DAYS, **common)
 
 
 async def create_access_token(user_id: str) -> str:

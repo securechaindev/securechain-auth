@@ -4,6 +4,7 @@ from .jwt_encoder import (
     create_access_token,
     create_refresh_token,
     read_expiration_date,
+    set_auth_cookies,
     verify_access_token,
     verify_refresh_token,
 )
@@ -19,6 +20,7 @@ __all__ = [
     "get_hashed_password",
     "json_encoder",
     "read_expiration_date",
+    "set_auth_cookies",
     "verify_access_token",
     "verify_password",
     "verify_refresh_token",
