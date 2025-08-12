@@ -21,50 +21,32 @@ async def set_auth_cookies(resp: Response, access_token: str, refresh_token: str
 
 async def create_access_token(user_id: str) -> str:
     expire = datetime.now() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    payload = {"user_id": str(user_id), "exp": expire}
+    payload = {"user_id": user_id, "exp": expire}
     return encode(payload, settings.JWT_ACCESS_SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
 async def create_refresh_token(user_id: str) -> str:
     expire = datetime.now() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-    payload = {"user_id": str(user_id), "exp": expire}
+    payload = {"user_id": user_id, "exp": expire}
     return encode(payload, settings.JWT_REFRESH_SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-async def read_expiration_date(request: Request) -> datetime:
-    token = request.cookies.get("refresh_token")
-    if not token:
-        return datetime.now()
+async def read_expiration_date(refresh_token: str) -> datetime:
     try:
-        payload = decode(token, settings.JWT_REFRESH_SECRET_KEY, algorithms=[settings.ALGORITHM])
-        return datetime.fromtimestamp(payload["exp"])
-    except (ExpiredSignatureError, InvalidTokenError, KeyError, TypeError, ValueError):
-        return datetime.now()
+        payload = decode(refresh_token, settings.JWT_REFRESH_SECRET_KEY, algorithms=[settings.ALGORITHM])
+        expires_at = datetime.fromtimestamp(payload["exp"])
+    except Exception:
+        expires_at = datetime.now()
+    return expires_at
 
 
-async def verify_access_token(request: Request) -> dict[str, Any]:
-    token = request.cookies.get("access_token")
-    if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
-    try:
-        payload = decode(token, settings.JWT_ACCESS_SECRET_KEY, algorithms=[settings.ALGORITHM])
-    except ExpiredSignatureError as err:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired") from err
-    except InvalidTokenError as err:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from err
+async def verify_access_token(token: str) -> dict[str, Any]:
+    payload = decode(token, settings.JWT_ACCESS_SECRET_KEY, algorithms=[settings.ALGORITHM])
     return payload
 
 
-async def verify_refresh_token(request: Request) -> dict[str, Any]:
-    token = request.cookies.get("refresh_token")
-    if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
-    try:
-        payload = decode(token, settings.JWT_REFRESH_SECRET_KEY, algorithms=[settings.ALGORITHM])
-    except ExpiredSignatureError as err:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired") from err
-    except InvalidTokenError as err:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from err
+async def verify_refresh_token(token: str) -> dict[str, Any]:
+    payload = decode(token, settings.JWT_REFRESH_SECRET_KEY, algorithms=[settings.ALGORITHM])
     return payload
 
 
