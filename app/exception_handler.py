@@ -15,7 +15,7 @@ async def request_validation_exception_handler(request: Request, exc: RequestVal
     detail = {
         "code": "validation_error",
     }
-    logger.info(detail)
+    logger.info(msg)
     return JSONResponse(status_code=422, content=detail)
 
 
@@ -23,7 +23,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     detail = {
         "code": "http_error",
     }
-    logger.warning(detail)
+    logger.warning(exc.detail)
     return JSONResponse(status_code=exc.status_code, content=detail)
 
 
