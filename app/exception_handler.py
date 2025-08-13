@@ -27,11 +27,10 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     return JSONResponse(status_code=exc.status_code, content=detail)
 
 
-async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    url = f"{request.url.path}?{request.query_params}" if request.query_params else request.url.path
+async def unhandled_exception_handler(request: Request) -> JSONResponse:
     _, exception_value, _ = exc_info()
     detail = {
         "code": "internal_error",
     }
-    logger.error(detail)
+    logger.error(str(exception_value))
     return JSONResponse(status_code=500, content=detail)
