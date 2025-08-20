@@ -13,24 +13,24 @@ async def request_validation_exception_handler(request: Request, exc: RequestVal
         if isinstance(msg, Exception):
             msg = str(msg)
     detail = {
-        "code": "validation_error",
+        "detail": "validation_error",
     }
-    logger.info(msg)
+    logger.error(msg)
     return JSONResponse(status_code=422, content=detail)
 
 
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse | Response:
     detail = {
-        "code": "http_error",
+        "detail": exc.detail if isinstance(exc.detail, str) else "http_error",
     }
-    logger.warning(exc.detail)
+    logger.error(exc.detail)
     return JSONResponse(status_code=exc.status_code, content=detail)
 
 
 async def unhandled_exception_handler(request: Request) -> JSONResponse:
     _, exception_value, _ = exc_info()
     detail = {
-        "code": "internal_error",
+        "detail": "internal_error",
     }
     logger.error(str(exception_value))
     return JSONResponse(status_code=500, content=detail)
