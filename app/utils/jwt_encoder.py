@@ -6,7 +6,11 @@ from jwt import decode, encode
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 
 from app.config import settings
-from app.exceptions import NotAuthenticatedException, ExpiredTokenException, InvalidTokenException
+from app.exceptions import (
+    ExpiredTokenException,
+    InvalidTokenException,
+    NotAuthenticatedException,
+)
 
 
 async def set_auth_cookies(resp: Response, access_token: str, refresh_token: str) -> None:
