@@ -4,7 +4,7 @@ version = "1.0.19"
 description = "A simple user registry backend for Secure Chain tools"
 readme = "README.md"
 requires-python = ">=3.13"
-license = { text = "GPL-3.0" }
+license = { text = "GPL-3.0-or-later" }
 dependencies = [
     "setuptools==80.9.0",
     "fastapi==0.116.1",
@@ -35,12 +35,17 @@ dev = [
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+exclude = ["tests*", "dev*"]
+
 [tool.uv]
 dev-dependencies = [
     "pytest==8.4.1",
     "pytest-asyncio==1.1.0",
     "httpx==0.28.1",
-    "ruff==0.12.2",
+    "ruff==0.14.0",
 ]
 
 [tool.ruff]
