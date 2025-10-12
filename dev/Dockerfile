@@ -1,12 +1,14 @@
-FROM python:3.13.2-slim
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_SYSTEM_PYTHON=1
 
 WORKDIR /
 
-COPY /requirements.txt ./
+COPY /pyproject.toml ./
 
-RUN pip install --upgrade pip
-
-RUN pip install -r requirements.txt
+RUN uv pip install --system --no-cache ".[dev]"
 
 EXPOSE 8000
 

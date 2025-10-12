@@ -8,6 +8,7 @@ A simple user registry backend for Secure Chain tools, built with FastAPI. This 
 2. [Docker Compose](https://docs.docker.com/compose/) for container orchestration.
 3. It is recommended to use a GUI such as [MongoDB Compass](https://www.mongodb.com/en/products/compass).
 4. Python 3.13 or higher.
+5. [uv](https://github.com/astral-sh/uv) - Ultra-fast Python package manager (optional but recommended).
 
 ## Setup development profile
 
@@ -36,9 +37,36 @@ docker compose -f dev/docker-compose.yml up --build
 The API will be available at [http://localhost:8001](http://localhost:8002). You can access the API documentation at [http://localhost:8001/docs](http://localhost:8002/docs).
 
 ## Python Environment
-The project uses Python 3.13 and the dependencies are listed in `requirements.txt`.
+The project uses Python 3.13 and the dependencies are managed with `uv` (ultra-fast Python package manager).
 
 ### Setting up the development environment
+
+#### Option 1: Using uv (Recommended)
+
+1. **Install uv** (if not already installed):
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
+
+2. **Create and activate a virtual environment**:
+   ```bash
+   uv venv
+   source .venv/bin/activate
+   ```
+
+3. **Install dependencies**:
+   ```bash
+   uv sync
+   ```
+
+4. **Install dev dependencies**:
+   ```bash
+   uv sync --extra dev
+   # Or using pip-like syntax
+   uv pip install ".[dev]"
+   ```
+
+#### Option 2: Using traditional venv + pip
 
 1. **Create a virtual environment**:
    ```bash
@@ -52,14 +80,25 @@ The project uses Python 3.13 and the dependencies are listed in `requirements.tx
 
 3. **Install dependencies**:
    ```bash
-   pip install -r requirements.txt
+   pip install .
+   # Or with dev dependencies
+   pip install ".[dev]"
    ```
 
 ## Testing
 
 ### Install test dependencies
+
+With uv:
 ```bash
-pip install -r tests/requirements-dev.txt
+uv sync --extra dev
+# Or
+uv pip install ".[dev]"
+```
+
+With pip:
+```bash
+pip install ".[dev]"
 ```
 
 ### Run tests
