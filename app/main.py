@@ -1,5 +1,3 @@
-from contextlib import asynccontextmanager
-
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from slowapi import _rate_limit_exceeded_handler
@@ -13,7 +11,6 @@ from app.exception_handler import (
     request_validation_exception_handler,
     unhandled_exception_handler,
 )
-from app.http_session import close_session
 from app.limiter import limiter
 from app.middleware import log_request_middleware
 from app.router import api_router
@@ -21,11 +18,6 @@ from app.router import api_router
 DESCRIPTION = """
 A simple user registry backend for Secure Chain tools, built with FastAPI. This service provides user authentication, registration, password management, and token-based security.
 """
-
-@asynccontextmanager
-async def lifespan(_: FastAPI):
-    yield
-    await close_session()
 
 app = FastAPI(
     title="Secure Chain User Backend",
@@ -41,7 +33,6 @@ app = FastAPI(
         "name": "License :: OSI Approved :: Apache Software License",
         "url": "https://www.apache.org/licenses/LICENSE-2.0",
     },
-    lifespan=lifespan
 )
 
 app.state.limiter = limiter
