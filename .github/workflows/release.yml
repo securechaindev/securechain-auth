@@ -1,6 +1,12 @@
 name: Publish GitHub Release
 
 on:
+  workflow_run:
+    workflows: ["Python analisys"]
+    types:
+      - completed
+    branches:
+      - main
   push:
     tags:
       - "*"
@@ -8,7 +14,9 @@ on:
 jobs:
   push_to_registry:
     name: Push GitHub Release
-    if: github.ref_type == 'tag'
+    if: |
+      github.ref_type == 'tag' &&
+      (github.event_name == 'push' || github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout git repo
