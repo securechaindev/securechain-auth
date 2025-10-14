@@ -1,9 +1,12 @@
 from functools import lru_cache
 
+from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    model_config = ConfigDict(env_file=".env")
+
     GRAPH_DB_URI: str = ""
     GRAPH_DB_USER: str = ""
     GRAPH_DB_PASSWORD: str = ""
@@ -18,9 +21,6 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 0
     JWT_ACCESS_SECRET_KEY: str = ""
     JWT_REFRESH_SECRET_KEY: str = ""
-
-    class Config:
-        env_file = ".env"
 
 
 @lru_cache
