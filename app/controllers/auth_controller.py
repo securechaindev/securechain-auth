@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, Request, status
+from fastapi import APIRouter, Body, Request, status
 from fastapi.responses import JSONResponse
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 
@@ -13,27 +13,18 @@ from app.schemas.auth import (
     SignUpRequest,
     VerifyTokenRequest,
 )
-from app.services import (
-    create_revoked_token,
-    create_user,
-    is_token_revoked,
-    read_user_by_email,
-    update_user_password,
-)
+from app.services import AuthService
 from app.utils import (
+    JSONEncoder,
     JWTBearer,
-    create_access_token,
-    create_refresh_token,
-    get_hashed_password,
-    json_encoder,
-    read_expiration_date,
-    set_auth_cookies,
-    verify_access_token,
-    verify_password,
-    verify_refresh_token,
+    PasswordEncoder,
 )
 
 router = APIRouter()
+auth_service = AuthService()
+jwt_bearer = JWTBearer()
+json_encoder = JSONEncoder()
+password_encoder = PasswordEncoder()
 
 @router.post(
     "/signup",
@@ -43,24 +34,27 @@ router = APIRouter()
     tags=["Secure Chain Auth"]
 )
 @limiter.limit("25/minute")
-async def signup(request: Request, sign_up_request: SignUpRequest) -> JSONResponse:
-    existing_user = await read_user_by_email(sign_up_request.email)
+async def signup(
+    request: Request,
+    sign_up_request: SignUpRequest,
+) -> JSONResponse:
+    existing_user = await auth_service.read_user_by_email(sign_up_request.email)
     if existing_user:
         return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
-            content= await json_encoder(
+            content= json_encoder.encode(
                 {
                     "detail": "user_already_exists",
                 }
             ),
         )
-    await create_user({
+    await auth_service.create_user({
         "email": sign_up_request.email,
-        "password": await get_hashed_password(sign_up_request.password)
+        "password": await password_encoder.hash(sign_up_request.password)
     })
     return JSONResponse(
         status_code=status.HTTP_200_OK,
-        content= await json_encoder(
+        content= json_encoder.encode(
             {
                 "detail": "signup_success",
             }
@@ -76,38 +70,41 @@ async def signup(request: Request, sign_up_request: SignUpRequest) -> JSONRespon
     tags=["Secure Chain Auth"]
 )
 @limiter.limit("25/minute")
-async def login(request: Request, login_request: Annotated[LoginRequest, Body()]) -> JSONResponse:
-    user = await read_user_by_email(login_request.email)
+async def login(
+    request: Request,
+    login_request: Annotated[LoginRequest, Body()],
+) -> JSONResponse:
+    user = await auth_service.read_user_by_email(login_request.email)
     if user is None:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            content= await json_encoder(
+            content= json_encoder.encode(
                 {
                     "detail": "user_no_exist",
                 }
             ),
         )
     hashed_pass = user.password
-    if not await verify_password(login_request.password, hashed_pass):
+    if not await password_encoder.verify(login_request.password, hashed_pass):
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            content= await json_encoder(
+            content= json_encoder.encode(
                 {
                     "detail": "user_incorrect_password",
                 }
             ),
         )
     user_id = str(user.id)
-    access_token = await create_access_token(user_id)
-    refresh_token = await create_refresh_token(user_id)
+    access_token = await jwt_bearer.create_access_token(user_id)
+    refresh_token = await jwt_bearer.create_refresh_token(user_id)
     response = JSONResponse(
         status_code=status.HTTP_200_OK,
-        content= await json_encoder({
+        content= json_encoder.encode({
             "user_id": user_id,
             "detail": "login_success",
         }),
     )
-    await set_auth_cookies(response, access_token, refresh_token)
+    await jwt_bearer.set_auth_cookies(response, access_token, refresh_token)
     return response
 
 
@@ -116,23 +113,25 @@ async def login(request: Request, login_request: Annotated[LoginRequest, Body()]
     summary="User Logout",
     description="Log out a user and revoke their refresh token.",
     response_description="Logout successful.",
-    dependencies=[Depends(JWTBearer())],
     tags=["Secure Chain Auth"]
 )
 @limiter.limit("25/minute")
-async def logout(request: Request) -> JSONResponse:
+async def logout(
+    request: Request,
+) -> JSONResponse:
+    await jwt_bearer(request)
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            content= await json_encoder({
+            content= json_encoder.encode({
                 "detail": "missing_refresh_token",
             }),
         )
-    await create_revoked_token(refresh_token, await read_expiration_date(refresh_token))
+    await auth_service.create_revoked_token(refresh_token, await jwt_bearer.read_expiration_date(refresh_token))
     response = JSONResponse(
         status_code=status.HTTP_200_OK,
-        content= await json_encoder({
+        content= json_encoder.encode({
             "detail": "logout_success",
         }),
     )
@@ -149,11 +148,14 @@ async def logout(request: Request) -> JSONResponse:
     tags=["Secure Chain Auth"]
 )
 @limiter.limit("25/minute")
-async def account_exists(request: Request, account_exists_request: AccountExistsRequest) -> JSONResponse:
-    user = await read_user_by_email(account_exists_request.email)
+async def account_exists(
+    request: Request,
+    account_exists_request: AccountExistsRequest,
+) -> JSONResponse:
+    user = await auth_service.read_user_by_email(account_exists_request.email)
     return JSONResponse(
         status_code=status.HTTP_200_OK,
-        content= await json_encoder(
+        content= json_encoder.encode(
             {
                 "user_exists": True if user else False,
                 "detail": "account_exists_success",
@@ -167,36 +169,39 @@ async def account_exists(request: Request, account_exists_request: AccountExists
     summary="User Change Password",
     description="Change the password for a user.",
     response_description="Password change status.",
-    dependencies=[Depends(JWTBearer())],
     tags=["Secure Chain Auth"],
 )
 @limiter.limit("25/minute")
-async def change_password(request: Request, change_password_request: ChangePasswordRequest) -> JSONResponse:
-    user = await read_user_by_email(change_password_request.email)
+async def change_password(
+    request: Request,
+    change_password_request: ChangePasswordRequest,
+) -> JSONResponse:
+    await jwt_bearer(request)
+    user = await auth_service.read_user_by_email(change_password_request.email)
     if user is None:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            content= await json_encoder(
+            content= json_encoder.encode(
                 {
                     "detail": "user_no_exist",
                 }
             ),
         )
-    if not await verify_password(change_password_request.old_password, user.password):
+    if not await password_encoder.verify(change_password_request.old_password, user.password):
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            content= await json_encoder(
+            content= json_encoder.encode(
                 {
                     "detail": "user_invalid_old_password",
                 }
             ),
         )
-    encrypted_password = await get_hashed_password(change_password_request.new_password)
+    encrypted_password = await password_encoder.hash(change_password_request.new_password)
     user.password = encrypted_password
-    await update_user_password(user)
+    await auth_service.update_user_password(user)
     return JSONResponse(
         status_code=status.HTTP_200_OK,
-        content= await json_encoder(
+        content= json_encoder.encode(
             {
                 "detail": "change_password_success",
             }
@@ -217,16 +222,16 @@ async def check_token(request: Request, verify_token_request: VerifyTokenRequest
     if not token:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            content= await json_encoder({
+            content= json_encoder.encode({
                 "valid": False,
                 "detail": "token_missing",
             }),
         )
     try:
-        payload = await verify_access_token(token)
+        payload = await jwt_bearer.verify_access_token(token)
         return JSONResponse(
             status_code=status.HTTP_200_OK,
-            content= await json_encoder({
+            content= json_encoder.encode({
                 "valid": True,
                 "user_id": payload.get("user_id"),
                 "detail": "token_verification_success",
@@ -235,7 +240,7 @@ async def check_token(request: Request, verify_token_request: VerifyTokenRequest
     except ExpiredSignatureError:
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            content= await json_encoder({
+            content= json_encoder.encode({
                 "valid": False,
                 "detail": "token_expired",
             }),
@@ -243,7 +248,7 @@ async def check_token(request: Request, verify_token_request: VerifyTokenRequest
     except InvalidTokenError:
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            content= await json_encoder({
+            content= json_encoder.encode({
                 "valid": False,
                 "detail": "token_invalid",
             }),
@@ -251,7 +256,7 @@ async def check_token(request: Request, verify_token_request: VerifyTokenRequest
     except Exception:
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content= await json_encoder({
+            content= json_encoder.encode({
                 "valid": False,
                 "detail": "token_error",
             }),
@@ -266,28 +271,30 @@ async def check_token(request: Request, verify_token_request: VerifyTokenRequest
     tags=["Secure Chain Auth"],
 )
 @limiter.limit("25/minute")
-async def refresh_token_endpoint(request: Request) -> JSONResponse:
+async def refresh_token_endpoint(
+    request: Request,
+) -> JSONResponse:
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            content= await json_encoder({
+            content= json_encoder.encode({
                 "detail": "missing_refresh_token",
             }),
         )
-    if await is_token_revoked(refresh_token):
+    if await auth_service.is_token_revoked(refresh_token):
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            content= await json_encoder({
+            content= json_encoder.encode({
                 "detail": "token_revoked",
             }),
         )
     try:
-        payload = await verify_refresh_token(refresh_token)
-        new_access_token = await create_access_token(payload["user_id"])
+        payload = await jwt_bearer.verify_refresh_token(refresh_token)
+        new_access_token = await jwt_bearer.create_access_token(payload["user_id"])
         response = JSONResponse(
             status_code=status.HTTP_200_OK,
-            content= await json_encoder({
+            content= json_encoder.encode({
                 "detail": "refresh_token_success",
             }),
         )
@@ -303,21 +310,21 @@ async def refresh_token_endpoint(request: Request) -> JSONResponse:
     except ExpiredSignatureError:
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            content= await json_encoder({
+            content= json_encoder.encode({
                 "detail": "token_expired",
             }),
         )
     except InvalidTokenError:
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            content= await json_encoder({
+            content= json_encoder.encode({
                 "detail": "token_invalid",
             }),
         )
     except Exception:
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content= await json_encoder({
+            content= json_encoder.encode({
                 "detail": "token_error",
             }),
         )
