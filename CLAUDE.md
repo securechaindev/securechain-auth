@@ -42,10 +42,13 @@ securechain-auth/
 │   │   ├── patterns/             # Regex patterns for validation
 │   │   └── validators/           # Custom validators
 │   ├── utils/                    # Utilities
-│   │   ├── jwt_encoder.py        # JWT encoding/decoding
-│   │   ├── password_encoder.py   # Password hashing (bcrypt)
-│   │   └── json_encoder.py       # Custom JSON encoders
-│   └── exceptions/               # Custom exceptions
+│   │   ├── jwt_encoder.py        # JWT encoding/decoding (JWTBearer class)
+│   │   ├── password_encoder.py   # Password hashing (PasswordEncoder class)
+│   │   └── json_encoder.py       # Custom JSON encoder (JSONEncoder class)
+│   └── exceptions/               # Custom exceptions (one class per file)
+│       ├── not_authenticated_exception.py
+│       ├── expired_token_exception.py
+│       └── invalid_token_exception.py
 ├── tests/                        # Tests with pytest
 │   ├── conftest.py              # Pytest configuration
 │   ├── controllers/             # Controller tests
@@ -61,6 +64,67 @@ securechain-auth/
 └── README.md                   # Main documentation
 
 ```
+
+### Code Organization Pattern
+
+The project follows a **direct instantiation pattern** for services and utilities:
+
+#### Controllers (`app/controllers/`)
+Each controller creates module-level instances of services and utilities:
+
+```python
+# Example: auth_controller.py
+from app.services import AuthService
+from app.utils import JWTBearer, JSONEncoder, PasswordEncoder
+
+# Module-level instances (singletons per module)
+auth_service = AuthService()
+jwt_bearer = JWTBearer()
+json_encoder = JSONEncoder()
+password_encoder = PasswordEncoder()
+
+@router.post("/endpoint")
+async def endpoint():
+    # Direct usage of instances
+    user = await auth_service.read_user_by_email(email)
+    payload = await jwt_bearer.verify_access_token(token)
+    response = json_encoder.encode(data)
+    hashed = await password_encoder.hash(password)
+```
+
+**Benefits**:
+- ✅ Simple and explicit
+- ✅ No dependency injection complexity
+- ✅ Easy to understand and maintain
+- ✅ Consistent pattern across the codebase
+
+#### Services (`app/services/`)
+- **AuthService**: Business logic for authentication
+- Direct instantiation: `AuthService()`
+- Manages Neo4j and MongoDB connections internally
+
+#### Utilities (`app/utils/`)
+All utilities are classes that are instantiated directly:
+
+- **JWTBearer**: JWT token operations (create, verify, set cookies)
+  ```python
+  jwt_bearer = JWTBearer()
+  token = await jwt_bearer.create_access_token(data)
+  payload = await jwt_bearer.verify_access_token(token)
+  ```
+
+- **JSONEncoder**: JSON serialization with custom types (ObjectId, datetime)
+  ```python
+  json_encoder = JSONEncoder()
+  result = json_encoder.encode(data)  # Handles ObjectId and datetime
+  ```
+
+- **PasswordEncoder**: Password hashing and verification (bcrypt)
+  ```python
+  password_encoder = PasswordEncoder()
+  hashed = await password_encoder.hash(password)
+  is_valid = await password_encoder.verify(password, hashed)
+  ```
 
 ## 🔧 Technology Stack
 
@@ -227,6 +291,35 @@ pytest tests --cov=app --cov-report=html
 - `tests/models/`: Data model tests
 - `conftest.py`: Shared fixtures (HTTP client, DB mocks)
 
+### Testing Strategy
+
+The project uses **patch-based mocking** for testing controllers:
+
+```python
+# Example: test_auth_controller.py
+@pytest.fixture(scope="session", autouse=True)
+def patch_jwt():
+    # Patch JWT at class level before app import
+    with patch("app.utils.jwt_encoder.JWTBearer.__call__", 
+               new=AsyncMock(return_value={"user_id": "abc123"})):
+        yield
+
+@pytest.fixture(autouse=True)
+def mock_services():
+    # Patch service instances
+    with patch("app.controllers.auth_controller.auth_service") as mock_auth:
+        mock_auth.read_user_by_email = AsyncMock()
+        mock_auth.create_user = AsyncMock()
+        # ... more async methods
+        yield mock_auth
+```
+
+**Key points**:
+- Patch `JWTBearer.__call__` at **session scope** before importing `app`
+- Patch service instances at **function scope** for each test
+- Use `AsyncMock` for all async methods
+- Configure return values as needed per test
+
 ## 📊 Logging
 
 The system uses structured logging:
@@ -297,6 +390,36 @@ uv sync --upgrade
 6. **Logging**: Structured logging with relevant context
 7. **Testing**: Tests for new features before merge
 8. **Security**: Never commit `.env` files, use `template.env`
+9. **Code Organization**: Direct instantiation pattern for services and utilities
+10. **No Comments**: Code should be self-documenting (no inline comments)
+
+### Architecture Patterns
+
+#### ✅ Direct Instantiation (Current Pattern)
+```python
+# In controllers
+auth_service = AuthService()
+jwt_bearer = JWTBearer()
+json_encoder = JSONEncoder()
+
+# Usage
+user = await auth_service.read_user_by_email(email)
+```
+
+**Why**: Simple, explicit, easy to understand and test
+
+#### ❌ Avoid Dependency Injection
+The project intentionally avoids FastAPI's `Depends()` pattern to keep code simple and explicit.
+
+#### ✅ Class-based Utilities
+All utilities are classes that encapsulate related functionality:
+- `JWTBearer`: JWT operations
+- `JSONEncoder`: JSON encoding with custom types
+- `PasswordEncoder`: Password hashing and verification
+- `AuthService`: Authentication business logic
+
+#### ✅ Module-level Instances
+Create instances at module level (singleton per module) for reuse across endpoint handlers.
 
 ## 🔗 Important Links
 
@@ -326,6 +449,53 @@ uv sync --upgrade
 - PascalCase for classes
 - Docstrings in public functions
 - Type hints mandatory
+- **No inline comments** - code should be self-documenting
+- **Direct instantiation** - avoid dependency injection patterns
+- **Class-based utilities** - group related functions in classes
+- **One class per file** - following Single Responsibility Principle
+
+### Common Patterns:
+
+#### Creating a new utility class:
+```python
+# app/utils/my_utility.py
+class MyUtility:
+    def __init__(self):
+        # Initialize if needed
+        pass
+    
+    def method(self, param: str) -> str:
+        # Implementation
+        return result
+
+# In controller
+from app.utils import MyUtility
+
+my_utility = MyUtility()
+```
+
+#### Adding a new endpoint:
+```python
+# In controller
+@router.post("/endpoint")
+@limiter.limit("25/minute")
+async def endpoint(request: Request, data: Schema) -> JSONResponse:
+    result = await auth_service.method(data)
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content=json_encoder.encode({"detail": result})
+    )
+```
+
+#### Testing pattern:
+```python
+def test_endpoint(mock_services):
+    mock_auth = mock_services
+    mock_auth.method.return_value = expected_value
+    
+    response = client.post("/endpoint", json={"data": "value"})
+    assert response.status_code == 200
+```
 
 ### Debugging:
 - Logs in `errors.log`
@@ -334,5 +504,5 @@ uv sync --upgrade
 
 ---
 
-**Last updated**: October 12, 2025  
+**Last updated**: October 15, 2025  
 **Maintained by**: Secure Chain Team
