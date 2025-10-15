@@ -12,7 +12,7 @@ from app.exception_handler import (
     unhandled_exception_handler,
 )
 from app.limiter import limiter
-from app.middleware import log_request_middleware
+from app.middleware import LogRequestMiddleware
 from app.router import api_router
 
 DESCRIPTION = """
@@ -38,7 +38,7 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-app.middleware("http")(log_request_middleware)
+app.add_middleware(LogRequestMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.SERVICES_ALLOWED_ORIGINS,
