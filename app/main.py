@@ -18,7 +18,7 @@ A simple user registry backend for Secure Chain tools, built with FastAPI. This 
 app = FastAPI(
     title="Secure Chain User Backend",
     docs_url=settings.DOCS_URL,
-    version="1.0.2",
+    version="1.0.19",
     description=DESCRIPTION,
     contact={
         "name": "Secure Chain Team",

@@ -110,7 +110,6 @@ async def test_is_token_revoked_true_and_false():
     mock_engine.find_one.assert_called_once_with(RevokedToken, RevokedToken.token == "sometoken")
     assert result is True
 
-    # Test false case
     mock_engine.find_one = AsyncMock(return_value=None)
 
     result = await service.is_token_revoked("othertoken")
