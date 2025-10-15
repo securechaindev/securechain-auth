@@ -53,6 +53,7 @@ LICENSE
 *.md
 
 # Logs
+logs/
 *.log
 errors.log*
 
