@@ -1,14 +1,34 @@
 # tests/conftest.py
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
+# Mock databases before any imports - patch where they're USED not where they're defined
+_mock_engine_patch = patch("app.services.auth_service.get_odmantic_engine")
+_mock_driver_patch = patch("app.services.auth_service.get_graph_db_driver")
+
+_mock_engine = _mock_engine_patch.start()
+_mock_driver = _mock_driver_patch.start()
+
+_mock_engine.return_value = AsyncMock()
+_mock_driver.return_value = MagicMock()
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Clean up mocks after test session"""
+    _mock_engine_patch.stop()
+    _mock_driver_patch.stop()
+
+
+@pytest.fixture(autouse=True)
+def reset_auth_service_singleton():
+    """Reset AuthService instances before each test"""
+    yield
+
 
 @pytest.fixture(scope="module")
 def client():
-    with patch("app.services.dbs.databases.get_odmantic_engine") as mock_get_engine:
-        mock_get_engine.return_value = MagicMock()
-        from app.main import app  # Importa después de aplicar el patch
-        with TestClient(app) as c:
-            yield c
+    from app.main import app
+    with TestClient(app) as c:
+        yield c
