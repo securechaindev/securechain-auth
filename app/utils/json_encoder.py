@@ -1,18 +1,18 @@
 from datetime import datetime
-from json import JSONEncoder, loads
+from json import dumps, loads
 from typing import Any
 
 from bson import ObjectId
 
 
-class JSONencoder(JSONEncoder):
-    def default(self, o: Any) -> Any:
+class JSONEncoder:
+    @staticmethod
+    def default(o: Any) -> Any:
         if isinstance(o, ObjectId):
             return str(o)
         if isinstance(o, datetime):
-            return str(o)
-        return JSONEncoder.default(self, o)
+            return o.isoformat()
+        raise TypeError(f"Object of type {type(o).__name__} is not JSON serializable")
 
-
-async def json_encoder(raw_response: dict[str, Any]) -> Any:
-    return loads(JSONencoder().encode(raw_response))
+    def encode(self, raw_response: dict[str, Any]) -> dict[str, Any]:
+        return loads(dumps(raw_response, default=self.default))
