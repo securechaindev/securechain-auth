@@ -33,7 +33,6 @@ auth-env/
 
 # uv
 .uv/
-uv.lock
 
 # IDEs
 .vscode
@@ -48,9 +47,9 @@ uv.lock
 .envr
 
 # Documentation
-README.md
 LICENSE
 *.md
+!README.md
 
 # Logs
 logs/

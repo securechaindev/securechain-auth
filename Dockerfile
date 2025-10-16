@@ -1,22 +1,28 @@
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
+FROM python:3.13-slim AS builder
 
 WORKDIR /install
 
-COPY pyproject.toml .
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-RUN uv pip install --system --no-cache .
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml uv.lock README.md ./
+COPY app ./app
+
+RUN uv sync --frozen --no-dev --no-cache
 
 FROM python:3.13-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    UV_SYSTEM_PYTHON=1
+    PATH="/install/.venv/bin:$PATH"
 
 WORKDIR /app
 
-COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
-
+COPY --from=builder /install/.venv /install/.venv
 COPY ./app ./app
 
 EXPOSE 8000

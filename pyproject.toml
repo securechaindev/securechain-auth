@@ -6,7 +6,6 @@ readme = "README.md"
 requires-python = ">=3.13"
 license = { text = "GPL-3.0-or-later" }
 dependencies = [
-    "setuptools==80.9.0",
     "fastapi==0.116.1",
     "uvicorn==0.35.0",
     "email-validator==2.2.0",
@@ -31,24 +30,15 @@ dev = [
 ]
 
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["app*"]
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
 exclude = ["tests*", "dev*"]
 
-[tool.uv]
-dev-dependencies = [
-    "pytest==8.4.1",
-    "pytest-asyncio==1.1.0",
-    "httpx==0.28.1",
-    "ruff==0.14.0",
-]
-
-[tool.ruff]
-line-length = 88
+[tool.hatch.build.targets.sdist]
+exclude = ["tests*", "dev*"]
 
 [tool.ruff.lint]
 select = [
@@ -66,6 +56,6 @@ select = [
 
 ignore = [
     "E501",  # Suppress line-too-long warnings: trust black's judgement on this one
-    "C901",
-    "A004"
+    "C901",  # Complex structure
+    "A004",  # Module attribute shadowing
 ]
