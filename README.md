@@ -39,9 +39,7 @@ The API will be available at [http://localhost:8001](http://localhost:8002). You
 ## Python Environment
 The project uses Python 3.13 and the dependencies are managed with `uv` (ultra-fast Python package manager).
 
-### Setting up the development environment
-
-#### Option 1: Using uv (Recommended)
+### Setting up the development environment using uv
 
 1. **Install uv** (if not already installed):
    ```bash
@@ -66,25 +64,6 @@ The project uses Python 3.13 and the dependencies are managed with `uv` (ultra-f
    uv pip install ".[dev]"
    ```
 
-#### Option 2: Using traditional venv + pip
-
-1. **Create a virtual environment**:
-   ```bash
-   python3.13 -m venv auth-env
-   ```
-
-2. **Activate the virtual environment**:
-   ```bash
-   source auth-env/bin/activate
-   ```
-
-3. **Install dependencies**:
-   ```bash
-   pip install .
-   # Or with dev dependencies
-   pip install ".[dev]"
-   ```
-
 ## Testing
 
 ### Install test dependencies
@@ -96,14 +75,9 @@ uv sync --extra dev
 uv pip install ".[dev]"
 ```
 
-With pip:
-```bash
-pip install ".[dev]"
-```
-
 ### Run tests
 ```bash
-pytest tests
+uv run pytest -v
 ```
 
 ## Contributing

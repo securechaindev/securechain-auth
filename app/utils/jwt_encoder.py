@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from fastapi import Request, Response
+from fastapi.security import HTTPBearer
 from jwt import decode, encode
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 
@@ -13,8 +14,9 @@ from app.exceptions import (
 )
 
 
-class JWTBearer:
+class JWTBearer(HTTPBearer):
     def __init__(self, cookie_name: str = "access_token"):
+        super().__init__(auto_error=False)
         self.cookie_name = cookie_name
 
     async def __call__(self, request: Request) -> dict[str, Any]:

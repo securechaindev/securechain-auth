@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Request, status
+from fastapi import APIRouter, Body, Depends, Request, status
 from fastapi.responses import JSONResponse
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 
@@ -113,13 +113,13 @@ async def login(
     summary="User Logout",
     description="Log out a user and revoke their refresh token.",
     response_description="Logout successful.",
-    tags=["Secure Chain Auth"]
+    tags=["Secure Chain Auth"],
+    dependencies=[Depends(jwt_bearer)]
 )
 @limiter.limit("25/minute")
 async def logout(
     request: Request,
 ) -> JSONResponse:
-    await jwt_bearer(request)
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
         return JSONResponse(
@@ -170,13 +170,13 @@ async def account_exists(
     description="Change the password for a user.",
     response_description="Password change status.",
     tags=["Secure Chain Auth"],
+    dependencies=[Depends(jwt_bearer)]
 )
 @limiter.limit("25/minute")
 async def change_password(
     request: Request,
     change_password_request: ChangePasswordRequest,
 ) -> JSONResponse:
-    await jwt_bearer(request)
     user = await auth_service.read_user_by_email(change_password_request.email)
     if user is None:
         return JSONResponse(
