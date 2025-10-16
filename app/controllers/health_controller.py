@@ -17,7 +17,7 @@ json_encoder = JSONEncoder()
 @limiter.limit("25/minute")
 async def health_check(request: Request) -> JSONResponse:
     return JSONResponse(
-        status_code=status.HTTP_200_OK, content= json_encoder.encode(
+        status_code=status.HTTP_200_OK, content=json_encoder.encode(
             {
                 "detail": "healthy",
             }

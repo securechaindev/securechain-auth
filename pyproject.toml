@@ -1,6 +1,6 @@
 [project]
 name = "securechain-auth"
-version = "1.0.19"
+version = "1.1.1"
 description = "A simple user registry backend for Secure Chain tools"
 readme = "README.md"
 requires-python = ">=3.13"
