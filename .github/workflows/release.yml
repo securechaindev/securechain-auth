@@ -2,7 +2,7 @@ name: Publish GitHub Release
 
 on:
   workflow_run:
-    workflows: ["Python analisys"]
+    workflows: ["Lint & Test"]
     types:
       - completed
     branches:
