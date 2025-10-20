@@ -68,38 +68,46 @@ securechain-auth/
 
 ### Code Organization Pattern
 
-The project follows a **direct instantiation pattern** for services and utilities:
+The project follows a **dependency injection pattern** for services with **direct instantiation** for utilities:
 
 #### Controllers (`app/controllers/`)
-Each controller creates module-level instances of services and utilities:
+Controllers use FastAPI's dependency injection (`Depends()`) for services, but direct instantiation for utilities:
 
 ```python
 # Example: auth_controller.py
+from fastapi import Depends
 from app.services import AuthService
 from app.utils import JWTBearer, JSONEncoder, PasswordEncoder
+from app.database import DatabaseManager, get_database_manager
 
-# Module-level instances (singletons per module)
-auth_service = AuthService()
+# Module-level utility instances (singletons per module)
 jwt_bearer = JWTBearer()
 json_encoder = JSONEncoder()
 password_encoder = PasswordEncoder()
 
+# Dependency injection for services
+def get_auth_service(db: DatabaseManager = Depends(get_database_manager)) -> AuthService:
+    return AuthService(db)
+
 @router.post("/endpoint")
-async def endpoint():
-    # Direct usage of instances
+async def endpoint(
+    auth_service: AuthService = Depends(get_auth_service)
+):
+    # Injected service
     user = await auth_service.read_user_by_email(email)
+    # Direct utility usage
     payload = await jwt_bearer.verify_access_token(token)
     response = json_encoder.encode(data)
     hashed = await password_encoder.hash(password)
 ```
 
 **Benefits**:
-- ✅ Simple and explicit
-- ✅ No dependency injection complexity
-- ✅ Easy to understand and maintain
-- ✅ Consistent pattern across the codebase
+- ✅ Proper lifecycle management for database connections
+- ✅ Easy to test with `app.dependency_overrides`
+- ✅ Clear separation: DI for stateful services, direct for utilities
+- ✅ Follows FastAPI best practices
 
-#### Database Manager (`app/database_manager.py`)
+#### Database Manager (`app/database.py`)
 - **DatabaseManager**: Singleton pattern for database connections
 - Manages connection pools for MongoDB (Motor/Odmantic) and Neo4j
 - Lifecycle management: `initialize()` on startup, `close()` on shutdown
@@ -114,12 +122,13 @@ async def lifespan(app: FastAPI):
     yield
     await db_manager.close()
 
-# In services
-class AuthService:
-    def __init__(self):
-        db_manager = get_database_manager()
-        self._driver = db_manager.get_neo4j_driver()
-        self._engine = db_manager.get_odmantic_engine()
+app = FastAPI(lifespan=lifespan)
+```
+
+**Factory function** for dependency injection:
+```python
+def get_database_manager() -> DatabaseManager:
+    return DatabaseManager()
 ```
 
 **Benefits**:
@@ -127,15 +136,29 @@ class AuthService:
 - ✅ Proper connection lifecycle management
 - ✅ Configured connection pooling (min/max pool size, timeouts)
 - ✅ Centralized database configuration
-- ✅ Easy to mock in tests
+- ✅ Easy to mock in tests with `app.dependency_overrides`
 
 #### Services (`app/services/`)
 - **AuthService**: Business logic for authentication
-- Direct instantiation: `AuthService()`
-- Uses `DatabaseManager` internally for database access
+- **Dependency injection**: Receives `DatabaseManager` as constructor parameter
+- Uses `DatabaseManager` for database access
+
+```python
+class AuthService:
+    def __init__(self, db: DatabaseManager):
+        self._db = db
+        self._engine = db.get_odmantic_engine()
+        self._driver = db.get_neo4j_driver()
+```
+
+**Factory function** for dependency injection:
+```python
+def get_auth_service(db: DatabaseManager = Depends(get_database_manager)) -> AuthService:
+    return AuthService(db)
+```
 
 #### Utilities (`app/utils/`)
-All utilities are classes that are instantiated directly:
+All utilities are classes that are instantiated directly at module level:
 
 - **JWTBearer**: JWT token operations (create, verify, set cookies)
   ```python
@@ -324,44 +347,98 @@ pytest tests --cov=app --cov-report=html
 
 ### Testing Strategy
 
-The project uses **patch-based mocking** for testing:
+The project uses **dependency injection mocking** with `app.dependency_overrides` for testing:
 
 ```python
-# Example: conftest.py - Mock DatabaseManager
-_mock_db_manager_patch = patch("app.database_manager.DatabaseManager")
-_mock_db_manager_class = _mock_db_manager_patch.start()
-_mock_db_manager = MagicMock()
-_mock_db_manager_class.return_value = _mock_db_manager
+# Example: conftest.py - Setup mocks
+@pytest.fixture(scope="session")
+def mock_db_manager():
+    """Create a mock DatabaseManager for all tests."""
+    mock_db = MagicMock()
+    mock_db.get_odmantic_engine.return_value = AsyncMock()
+    mock_db.get_neo4j_driver.return_value = MagicMock()
+    mock_db.initialize = AsyncMock()
+    mock_db.close = AsyncMock()
+    return mock_db
 
-_mock_db_manager.get_odmantic_engine.return_value = AsyncMock()
-_mock_db_manager.get_neo4j_driver.return_value = MagicMock()
-_mock_db_manager.initialize = AsyncMock()
-_mock_db_manager.close = AsyncMock()
+@pytest.fixture(scope="session")
+def mock_auth_service():
+    """Create a mock AuthService for controller tests."""
+    mock_auth = MagicMock()
+    mock_auth.read_user_by_email = AsyncMock()
+    mock_auth.create_user = AsyncMock()
+    mock_auth.create_revoked_token = AsyncMock()
+    return mock_auth
 
-# Example: test_auth_controller.py
-@pytest.fixture(scope="session", autouse=True)
-def patch_jwt():
-    # Patch JWT at class level before app import
-    with patch("app.utils.jwt_encoder.JWTBearer.__call__", 
-               new=AsyncMock(return_value={"user_id": "abc123"})):
+@pytest.fixture(scope="session")
+def mock_jwt_bearer():
+    """Mock the jwt_bearer dependency for all protected routes."""
+    class MockJWTBearer:
+        async def __call__(self, request):
+            return {"user_id": "abc123"}
+    return MockJWTBearer()
+
+@pytest.fixture(scope="function")
+def client(mock_db_manager, mock_auth_service, mock_jwt_bearer):
+    """Create a TestClient with dependency overrides for each test."""
+    from app.main import app
+    from app.controllers.auth_controller import get_auth_service, jwt_bearer
+    from app.database import get_database_manager
+    
+    # Disable lifespan for tests
+    @asynccontextmanager
+    async def test_lifespan(app):
         yield
+    
+    app.router.lifespan_context = test_lifespan
+    
+    # Override dependencies
+    app.dependency_overrides[get_database_manager] = lambda: mock_db_manager
+    app.dependency_overrides[get_auth_service] = lambda: mock_auth_service
+    app.dependency_overrides[jwt_bearer] = lambda: mock_jwt_bearer
+    
+    with TestClient(app) as c:
+        yield c
+    
+    app.dependency_overrides.clear()
 
-@pytest.fixture(autouse=True)
-def mock_services():
-    # Patch service instances
-    with patch("app.controllers.auth_controller.auth_service") as mock_auth:
-        mock_auth.read_user_by_email = AsyncMock()
-        mock_auth.create_user = AsyncMock()
-        # ... more async methods
-        yield mock_auth
+# Example: test_auth_service.py - Service tests
+@pytest.mark.asyncio
+async def test_create_user_saves_user_and_creates_graph():
+    mock_engine = AsyncMock()
+    mock_driver = MagicMock()
+    mock_session = AsyncMock()
+    mock_driver.session.return_value.__aenter__.return_value = mock_session
+    
+    mock_db = MagicMock()
+    mock_db.get_odmantic_engine.return_value = mock_engine
+    mock_db.get_neo4j_driver.return_value = mock_driver
+    
+    # Inject mock DatabaseManager to service
+    service = AuthService(mock_db)
+    
+    await service.create_user({"email": "test@example.com", "password": "pass"})
+    
+    mock_engine.save.assert_called_once()
+    mock_session.run.assert_called_once()
 ```
 
 **Key points**:
-- Mock `DatabaseManager` at **session scope** in conftest.py
-- Patch `JWTBearer.__call__` at **session scope** before importing `app`
-- Patch service instances at **function scope** for each test
+- Use `app.dependency_overrides` to mock dependencies
+- Mock `DatabaseManager`, `AuthService`, and `jwt_bearer` at session scope
+- Create fresh `TestClient` per test function with overrides
+- Disable lifespan context manager for tests
+- For service tests, inject mock `DatabaseManager` to constructor
 - Use `AsyncMock` for all async methods
-- Configure return values as needed per test
+- Clear overrides after each test
+
+**Testing Checklist**:
+- ✅ Controller tests use `app.dependency_overrides`
+- ✅ Service tests inject mock `DatabaseManager`
+- ✅ All async methods use `AsyncMock()`
+- ✅ Protected routes mock `jwt_bearer` dependency
+- ✅ Database connections never initialized in tests
+- ✅ All 41 tests passing without warnings
 
 ## 📊 Logging
 
@@ -433,36 +510,86 @@ uv sync --upgrade
 6. **Logging**: Structured logging with relevant context
 7. **Testing**: Tests for new features before merge
 8. **Security**: Never commit `.env` files, use `template.env`
-9. **Code Organization**: Direct instantiation pattern for services and utilities
+9. **Code Organization**: 
+   - Dependency injection for services (use `Depends()`)
+   - Direct instantiation for utilities (module-level instances)
+   - DatabaseManager singleton with proper lifecycle
 10. **No Comments**: Code should be self-documenting (no inline comments)
 
 ### Architecture Patterns
 
-#### ✅ Direct Instantiation (Current Pattern)
+#### ✅ Dependency Injection for Services (Current Pattern)
 ```python
-# In controllers
-auth_service = AuthService()
-jwt_bearer = JWTBearer()
-json_encoder = JSONEncoder()
+# In controllers - use FastAPI Depends()
+from fastapi import Depends
 
-# Usage
-user = await auth_service.read_user_by_email(email)
+def get_auth_service(db: DatabaseManager = Depends(get_database_manager)) -> AuthService:
+    return AuthService(db)
+
+@router.post("/endpoint")
+async def endpoint(
+    auth_service: AuthService = Depends(get_auth_service)
+):
+    user = await auth_service.read_user_by_email(email)
 ```
 
-**Why**: Simple, explicit, easy to understand and test
+**Why**: Proper lifecycle management, easy testing with `app.dependency_overrides`
 
-#### ❌ Avoid Dependency Injection
-The project intentionally avoids FastAPI's `Depends()` pattern to keep code simple and explicit.
+#### ✅ Direct Instantiation for Utilities
+```python
+# In controllers - module-level instances
+jwt_bearer = JWTBearer()
+json_encoder = JSONEncoder()
+password_encoder = PasswordEncoder()
+
+# Usage
+token = await jwt_bearer.create_access_token(user_id)
+response = json_encoder.encode(data)
+hashed = await password_encoder.hash(password)
+```
+
+**Why**: Stateless utilities don't need lifecycle management or injection
 
 #### ✅ Class-based Utilities
 All utilities are classes that encapsulate related functionality:
 - `JWTBearer`: JWT operations
 - `JSONEncoder`: JSON encoding with custom types
 - `PasswordEncoder`: Password hashing and verification
-- `AuthService`: Authentication business logic
 
-#### ✅ Module-level Instances
-Create instances at module level (singleton per module) for reuse across endpoint handlers.
+#### ✅ DatabaseManager Singleton
+```python
+class DatabaseManager:
+    _instance = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+    
+    async def initialize(self):
+        # Create connection pools
+        pass
+    
+    async def close(self):
+        # Close connections
+        pass
+
+def get_database_manager() -> DatabaseManager:
+    return DatabaseManager()
+```
+
+**Why**: Single connection pool, proper resource management
+
+#### ✅ Dependency Hierarchy
+```
+DatabaseManager (singleton)
+    ↓ (injected via Depends)
+AuthService (per request)
+    ↓ (injected via Depends)
+Endpoints (request handlers)
+```
+
+Utilities (`jwt_bearer`, `json_encoder`, `password_encoder`) are used directly without injection.
 
 ## 🔗 Important Links
 
@@ -493,11 +620,42 @@ Create instances at module level (singleton per module) for reuse across endpoin
 - Docstrings in public functions
 - Type hints mandatory
 - **No inline comments** - code should be self-documenting
-- **Direct instantiation** - avoid dependency injection patterns
-- **Class-based utilities** - group related functions in classes
+- **Dependency injection for services** - use FastAPI `Depends()` pattern
+- **Direct instantiation for utilities** - module-level instances
+- **DatabaseManager singleton** - with proper lifecycle management
 - **One class per file** - following Single Responsibility Principle
 
 ### Common Patterns:
+
+#### Creating a new service with dependency injection:
+```python
+# app/services/my_service.py
+from app.database import DatabaseManager
+
+class MyService:
+    def __init__(self, db: DatabaseManager):
+        self._db = db
+        self._engine = db.get_odmantic_engine()
+        self._driver = db.get_neo4j_driver()
+    
+    async def method(self, param: str) -> str:
+        # Implementation using self._engine or self._driver
+        return result
+
+# In controller
+from fastapi import Depends
+from app.database import get_database_manager
+from app.services import MyService
+
+def get_my_service(db: DatabaseManager = Depends(get_database_manager)) -> MyService:
+    return MyService(db)
+
+@router.post("/endpoint")
+async def endpoint(
+    my_service: MyService = Depends(get_my_service)
+):
+    result = await my_service.method(param)
+```
 
 #### Creating a new utility class:
 ```python
@@ -514,7 +672,11 @@ class MyUtility:
 # In controller
 from app.utils import MyUtility
 
-my_utility = MyUtility()
+my_utility = MyUtility()  # Module-level instance
+
+@router.post("/endpoint")
+async def endpoint():
+    result = my_utility.method(param)
 ```
 
 #### Adding a new endpoint:
@@ -522,7 +684,11 @@ my_utility = MyUtility()
 # In controller
 @router.post("/endpoint")
 @limiter.limit("25/minute")
-async def endpoint(request: Request, data: Schema) -> JSONResponse:
+async def endpoint(
+    request: Request,
+    data: Schema,
+    auth_service: AuthService = Depends(get_auth_service)
+) -> JSONResponse:
     result = await auth_service.method(data)
     return JSONResponse(
         status_code=status.HTTP_200_OK,
@@ -530,14 +696,26 @@ async def endpoint(request: Request, data: Schema) -> JSONResponse:
     )
 ```
 
-#### Testing pattern:
+#### Testing pattern with dependency injection:
 ```python
-def test_endpoint(mock_services):
-    mock_auth = mock_services
-    mock_auth.method.return_value = expected_value
+# In test file
+def test_endpoint(client, mock_auth_service):
+    mock_auth_service.method.return_value = expected_value
     
     response = client.post("/endpoint", json={"data": "value"})
     assert response.status_code == 200
+    assert response.json()["detail"] == expected_value
+
+# For service tests
+@pytest.mark.asyncio
+async def test_service_method():
+    mock_db = MagicMock()
+    mock_db.get_odmantic_engine.return_value = AsyncMock()
+    
+    service = MyService(mock_db)
+    result = await service.method("param")
+    
+    assert result == expected
 ```
 
 ### Debugging:
@@ -547,5 +725,5 @@ def test_endpoint(mock_services):
 
 ---
 
-**Last updated**: October 15, 2025  
+**Last updated**: October 20, 2025  
 **Maintained by**: Secure Chain Team
