@@ -21,9 +21,11 @@ async def test_create_user_saves_user_and_creates_graph():
     mock_driver = MagicMock()
     mock_driver.session.return_value.__aenter__.return_value = mock_session
 
-    service = AuthService()
-    service._engine = mock_engine
-    service._driver = mock_driver
+    mock_db = MagicMock()
+    mock_db.get_odmantic_engine.return_value = mock_engine
+    mock_db.get_neo4j_driver.return_value = mock_driver
+
+    service = AuthService(mock_db)
 
     await service.create_user(user_data)
 
@@ -36,8 +38,10 @@ async def test_create_revoked_token_saves_token():
     mock_engine = AsyncMock()
     mock_engine.save = AsyncMock()
 
-    service = AuthService()
-    service._engine = mock_engine
+    mock_db = MagicMock()
+    mock_db.get_odmantic_engine.return_value = mock_engine
+
+    service = AuthService(mock_db)
 
     await service.create_revoked_token("sometoken", datetime(2030, 1, 1))
 
@@ -55,8 +59,10 @@ async def test_read_user_by_email_returns_user():
     mock_engine = AsyncMock()
     mock_engine.find_one = AsyncMock(return_value=fake_user)
 
-    service = AuthService()
-    service._engine = mock_engine
+    mock_db = MagicMock()
+    mock_db.get_odmantic_engine.return_value = mock_engine
+
+    service = AuthService(mock_db)
 
     user = await service.read_user_by_email("test@example.com")
 
@@ -72,8 +78,10 @@ async def test_update_user_password_updates_and_saves():
     mock_engine.find_one = AsyncMock(return_value=fake_user_doc)
     mock_engine.save = AsyncMock()
 
-    service = AuthService()
-    service._engine = mock_engine
+    mock_db = MagicMock()
+    mock_db.get_odmantic_engine.return_value = mock_engine
+
+    service = AuthService(mock_db)
 
     await service.update_user_password(User(email="test@example.com", password="newpasS1*"))
 
@@ -87,8 +95,10 @@ async def test_update_user_password_user_not_found():
     mock_engine.find_one = AsyncMock(return_value=None)
     mock_engine.save = AsyncMock()
 
-    service = AuthService()
-    service._engine = mock_engine
+    mock_db = MagicMock()
+    mock_db.get_odmantic_engine.return_value = mock_engine
+
+    service = AuthService(mock_db)
 
     await service.update_user_password(User(email="notfound@example.com", password="newpass1*"))
 
@@ -102,8 +112,10 @@ async def test_is_token_revoked_true_and_false():
     mock_engine = AsyncMock()
     mock_engine.find_one = AsyncMock(return_value=fake_token)
 
-    service = AuthService()
-    service._engine = mock_engine
+    mock_db = MagicMock()
+    mock_db.get_odmantic_engine.return_value = mock_engine
+
+    service = AuthService(mock_db)
 
     result = await service.is_token_revoked("sometoken")
 
