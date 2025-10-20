@@ -1,14 +1,13 @@
 from datetime import datetime
 
-from app.database import get_database_manager
+from app.database import DatabaseManager
 from app.models.auth import RevokedToken, User
 
 
 class AuthService:
-    def __init__(self) -> None:
-        db_manager = get_database_manager()
-        self._driver = db_manager.get_neo4j_driver()
-        self._engine = db_manager.get_odmantic_engine()
+    def __init__(self, db: DatabaseManager) -> None:
+        self._driver = db.get_neo4j_driver()
+        self._engine = db.get_odmantic_engine()
 
     async def create_user(self, user: dict[str, str]) -> None:
         query = """

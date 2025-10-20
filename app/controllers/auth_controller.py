@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 
 from app.config import settings
+from app.database import DatabaseManager, get_database_manager
 from app.limiter import limiter
 from app.schemas.auth import (
     AccountExistsRequest,
@@ -21,10 +22,13 @@ from app.utils import (
 )
 
 router = APIRouter()
-auth_service = AuthService()
 jwt_bearer = JWTBearer()
 json_encoder = JSONEncoder()
 password_encoder = PasswordEncoder()
+
+
+def get_auth_service(db: DatabaseManager = Depends(get_database_manager)) -> AuthService:
+    return AuthService(db)
 
 @router.post(
     "/signup",
@@ -37,6 +41,7 @@ password_encoder = PasswordEncoder()
 async def signup(
     request: Request,
     sign_up_request: SignUpRequest,
+    auth_service: AuthService = Depends(get_auth_service),
 ) -> JSONResponse:
     existing_user = await auth_service.read_user_by_email(sign_up_request.email)
     if existing_user:
@@ -73,6 +78,7 @@ async def signup(
 async def login(
     request: Request,
     login_request: Annotated[LoginRequest, Body()],
+    auth_service: AuthService = Depends(get_auth_service),
 ) -> JSONResponse:
     user = await auth_service.read_user_by_email(login_request.email)
     if user is None:
@@ -119,6 +125,7 @@ async def login(
 @limiter.limit("25/minute")
 async def logout(
     request: Request,
+    auth_service: AuthService = Depends(get_auth_service),
 ) -> JSONResponse:
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
@@ -151,6 +158,7 @@ async def logout(
 async def account_exists(
     request: Request,
     account_exists_request: AccountExistsRequest,
+    auth_service: AuthService = Depends(get_auth_service),
 ) -> JSONResponse:
     user = await auth_service.read_user_by_email(account_exists_request.email)
     return JSONResponse(
@@ -176,6 +184,7 @@ async def account_exists(
 async def change_password(
     request: Request,
     change_password_request: ChangePasswordRequest,
+    auth_service: AuthService = Depends(get_auth_service),
 ) -> JSONResponse:
     user = await auth_service.read_user_by_email(change_password_request.email)
     if user is None:
@@ -273,6 +282,7 @@ async def check_token(request: Request, verify_token_request: VerifyTokenRequest
 @limiter.limit("25/minute")
 async def refresh_token_endpoint(
     request: Request,
+    auth_service: AuthService = Depends(get_auth_service),
 ) -> JSONResponse:
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
