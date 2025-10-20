@@ -31,8 +31,9 @@ securechain-auth/
 │   │   ├── auth_controller.py    # Authentication and registration
 │   │   └── health_controller.py  # Health checks
 │   ├── services/                 # Business logic
-│   │   ├── auth_service.py       # Authentication service
-│   │   └── dbs/                  # Database services
+│   │   └── auth_service.py       # Authentication service
+│   ├── database_manager.py       # Database connection manager (Singleton)
+│   ├── constants.py              # Application constants and configurations
 │   ├── models/                   # Data models (ODM/OGM)
 │   │   └── auth/
 │   │       ├── User.py           # User model
@@ -98,10 +99,40 @@ async def endpoint():
 - ✅ Easy to understand and maintain
 - ✅ Consistent pattern across the codebase
 
+#### Database Manager (`app/database_manager.py`)
+- **DatabaseManager**: Singleton pattern for database connections
+- Manages connection pools for MongoDB (Motor/Odmantic) and Neo4j
+- Lifecycle management: `initialize()` on startup, `close()` on shutdown
+- Provides: `get_odmantic_engine()`, `get_neo4j_driver()`
+
+```python
+# In main.py
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    db_manager = get_database_manager()
+    await db_manager.initialize()
+    yield
+    await db_manager.close()
+
+# In services
+class AuthService:
+    def __init__(self):
+        db_manager = get_database_manager()
+        self._driver = db_manager.get_neo4j_driver()
+        self._engine = db_manager.get_odmantic_engine()
+```
+
+**Benefits**:
+- ✅ Singleton pattern ensures single connection pool
+- ✅ Proper connection lifecycle management
+- ✅ Configured connection pooling (min/max pool size, timeouts)
+- ✅ Centralized database configuration
+- ✅ Easy to mock in tests
+
 #### Services (`app/services/`)
 - **AuthService**: Business logic for authentication
 - Direct instantiation: `AuthService()`
-- Manages Neo4j and MongoDB connections internally
+- Uses `DatabaseManager` internally for database access
 
 #### Utilities (`app/utils/`)
 All utilities are classes that are instantiated directly:
@@ -293,9 +324,20 @@ pytest tests --cov=app --cov-report=html
 
 ### Testing Strategy
 
-The project uses **patch-based mocking** for testing controllers:
+The project uses **patch-based mocking** for testing:
 
 ```python
+# Example: conftest.py - Mock DatabaseManager
+_mock_db_manager_patch = patch("app.database_manager.DatabaseManager")
+_mock_db_manager_class = _mock_db_manager_patch.start()
+_mock_db_manager = MagicMock()
+_mock_db_manager_class.return_value = _mock_db_manager
+
+_mock_db_manager.get_odmantic_engine.return_value = AsyncMock()
+_mock_db_manager.get_neo4j_driver.return_value = MagicMock()
+_mock_db_manager.initialize = AsyncMock()
+_mock_db_manager.close = AsyncMock()
+
 # Example: test_auth_controller.py
 @pytest.fixture(scope="session", autouse=True)
 def patch_jwt():
@@ -315,6 +357,7 @@ def mock_services():
 ```
 
 **Key points**:
+- Mock `DatabaseManager` at **session scope** in conftest.py
 - Patch `JWTBearer.__call__` at **session scope** before importing `app`
 - Patch service instances at **function scope** for each test
 - Use `AsyncMock` for all async methods
