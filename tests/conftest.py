@@ -3,19 +3,20 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-_mock_engine_patch = patch("app.services.auth_service.get_odmantic_engine")
-_mock_driver_patch = patch("app.services.auth_service.get_graph_db_driver")
+_mock_db_manager_patch = patch("app.database.DatabaseManager")
 
-_mock_engine = _mock_engine_patch.start()
-_mock_driver = _mock_driver_patch.start()
+_mock_db_manager_class = _mock_db_manager_patch.start()
+_mock_db_manager = MagicMock()
+_mock_db_manager_class.return_value = _mock_db_manager
 
-_mock_engine.return_value = AsyncMock()
-_mock_driver.return_value = MagicMock()
+_mock_db_manager.get_odmantic_engine.return_value = AsyncMock()
+_mock_db_manager.get_neo4j_driver.return_value = MagicMock()
+_mock_db_manager.initialize = AsyncMock()
+_mock_db_manager.close = AsyncMock()
 
 
 def pytest_sessionfinish(session, exitstatus):
-    _mock_engine_patch.stop()
-    _mock_driver_patch.stop()
+    _mock_db_manager_patch.stop()
 
 
 @pytest.fixture(autouse=True)

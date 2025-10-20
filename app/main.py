@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from slowapi import _rate_limit_exceeded_handler
@@ -6,6 +8,7 @@ from starlette.exceptions import HTTPException
 from starlette.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.database import get_database_manager
 from app.exception_handler import ExceptionHandler
 from app.limiter import limiter
 from app.middleware import LogRequestMiddleware
@@ -15,7 +18,17 @@ DESCRIPTION = """
 A simple user registry backend for Secure Chain tools, built with FastAPI. This service provides user authentication, registration, password management, and token-based security.
 """
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    db_manager = get_database_manager()
+    await db_manager.initialize()
+    yield
+    await db_manager.close()
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title="Secure Chain User Backend",
     docs_url=settings.DOCS_URL,
     version="1.1.1",
