@@ -58,4 +58,5 @@ ignore = [
     "E501",  # Suppress line-too-long warnings: trust black's judgement on this one
     "C901",  # Complex structure
     "A004",  # Module attribute shadowing
+    "B008",  # Do not perform function calls in argument defaults (FastAPI Depends pattern)
 ]
