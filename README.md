@@ -1,5 +1,9 @@
 # Secure Chain Auth
 
+[![License](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Lint & Test](https://github.com/securechaindev/securechain-auth/actions/workflows/lint-test.yml/badge.svg)]()
+[![GHCR](https://img.shields.io/badge/GHCR-securechain--auth-blue?logo=docker)](https://github.com/orgs/securechaindev/packages/container/package/securechain-auth)
+
 A simple user registry backend for Secure Chain tools, built with FastAPI. This service provides user authentication, registration, password management, and token-based security, with support for MongoDB and Neo4j databases.
 
 ## Development requirements
