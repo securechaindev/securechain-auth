@@ -7,12 +7,12 @@ from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException
 from starlette.middleware.cors import CORSMiddleware
 
-from app.config import settings
 from app.database import get_database_manager
 from app.exception_handler import ExceptionHandler
 from app.limiter import limiter
 from app.middleware import LogRequestMiddleware
 from app.router import api_router
+from app.settings import settings
 
 DESCRIPTION = """
 A simple user registry backend for Secure Chain tools, built with FastAPI. This service provides user authentication, registration, password management, and token-based security.

@@ -6,12 +6,12 @@ from fastapi.security import HTTPBearer
 from jwt import decode, encode
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 
-from app.config import settings
 from app.exceptions import (
     ExpiredTokenException,
     InvalidTokenException,
     NotAuthenticatedException,
 )
+from app.settings import settings
 
 
 class JWTBearer(HTTPBearer):

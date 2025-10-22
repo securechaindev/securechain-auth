@@ -2,9 +2,9 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from neo4j import AsyncDriver, AsyncGraphDatabase
 from odmantic import AIOEngine
 
-from app.config import settings
 from app.constants import DatabaseConfig
 from app.logger import logger
+from app.settings import settings
 
 
 class DatabaseManager:
