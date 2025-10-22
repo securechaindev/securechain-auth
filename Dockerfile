@@ -16,11 +16,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/build/.venv/bin:$PATH"
 
-WORKDIR /app
+WORKDIR /
 
 COPY --from=builder /build/.venv /build/.venv
 
-COPY ./app ./app
+COPY app ./app
 
 EXPOSE 8000
 
