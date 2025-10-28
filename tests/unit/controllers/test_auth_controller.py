@@ -68,7 +68,7 @@ def test_login_user_not_exist(client, mock_auth_service):
 def test_login_wrong_password(client, mock_auth_service):
     mock_auth_service.read_user_by_email.return_value = User(email="test@example.com", password="hashed")
 
-    with patch("app.controllers.auth_controller.password_encoder.verify", new=AsyncMock(return_value=False)):
+    with patch("app.controllers.auth_controller.password_encoder.verify", return_value=False):
         response = client.post("/login", json={"email": "test@example.com", "password": "15pAssword*"})
         assert response.status_code == 400
         assert response.json()["detail"] == "user_incorrect_password"
@@ -77,10 +77,10 @@ def test_login_wrong_password(client, mock_auth_service):
 def test_login_success(client, mock_auth_service):
     mock_auth_service.read_user_by_email.return_value = User(email="test@example.com", password="hashed")
 
-    with patch("app.controllers.auth_controller.password_encoder.verify", new=AsyncMock(return_value=True)), \
-         patch("app.controllers.auth_controller.jwt_bearer.create_access_token", new=AsyncMock(return_value="access")), \
-         patch("app.controllers.auth_controller.jwt_bearer.create_refresh_token", new=AsyncMock(return_value="refresh")), \
-         patch("app.controllers.auth_controller.jwt_bearer.set_auth_cookies", new=AsyncMock()):
+    with patch("app.controllers.auth_controller.password_encoder.verify", return_value=True), \
+         patch("app.controllers.auth_controller.jwt_bearer.create_access_token", return_value="access"), \
+         patch("app.controllers.auth_controller.jwt_bearer.create_refresh_token", return_value="refresh"), \
+         patch("app.controllers.auth_controller.jwt_bearer.set_auth_cookies"):
         response = client.post("/login", json={"email": "test@example.com", "password": "13pAssword*"})
         assert response.status_code == 200
         assert response.json()["detail"] == "login_success"
@@ -100,7 +100,7 @@ def test_logout_no_refresh_token(client, mock_auth_service):
 def test_logout_success(client, mock_auth_service):
     mock_auth_service.create_revoked_token.return_value = None
 
-    with patch("app.controllers.auth_controller.jwt_bearer.read_expiration_date", new=AsyncMock(return_value=123456)):
+    with patch("app.controllers.auth_controller.jwt_bearer.read_expiration_date", return_value=123456):
         headers = {"Authorization": "Bearer faketoken"}
         client.cookies.clear()
         client.cookies.set("access_token", "faketoken")
@@ -144,7 +144,7 @@ def test_change_password_user_not_exist(client, mock_auth_service):
 def test_change_password_invalid_old_password(client, mock_auth_service):
     mock_auth_service.read_user_by_email.return_value = User(email="test@example.com", password="hashed")
 
-    with patch("app.controllers.auth_controller.password_encoder.verify", new=AsyncMock(return_value=False)):
+    with patch("app.controllers.auth_controller.password_encoder.verify", return_value=False):
         headers = {"Authorization": "Bearer faketoken"}
         client.cookies.clear()
         client.cookies.set("access_token", "faketoken")
@@ -157,8 +157,8 @@ def test_change_password_success(client, mock_auth_service):
     mock_auth_service.read_user_by_email.return_value = User(email="test@example.com", password="hashed")
     mock_auth_service.update_user_password.return_value = None
 
-    with patch("app.controllers.auth_controller.password_encoder.verify", new=AsyncMock(return_value=True)), \
-         patch("app.controllers.auth_controller.password_encoder.hash", new=AsyncMock(return_value="new_hashed")):
+    with patch("app.controllers.auth_controller.password_encoder.verify", return_value=True), \
+         patch("app.controllers.auth_controller.password_encoder.hash", return_value="new_hashed"):
         headers = {"Authorization": "Bearer faketoken"}
         client.cookies.clear()
         client.cookies.set("access_token", "faketoken")
@@ -177,7 +177,7 @@ def test_check_token_missing(client):
 
 def test_check_token_valid(client):
     headers = {"Authorization": "Bearer faketoken"}
-    with patch("app.controllers.auth_controller.jwt_bearer.verify_access_token", new=AsyncMock(return_value={"user_id": "abc123"})):
+    with patch("app.controllers.auth_controller.jwt_bearer.verify_access_token", return_value={"user_id": "abc123"}):
         response = client.post("/check_token", json={"token": "sometoken"}, headers=headers)
         assert response.status_code == 200
         assert response.json()["valid"] is True
@@ -186,7 +186,7 @@ def test_check_token_valid(client):
 
 def test_check_token_expired(client):
     headers = {"Authorization": "Bearer faketoken"}
-    with patch("app.controllers.auth_controller.jwt_bearer.verify_access_token", new=AsyncMock(side_effect=ExpiredSignatureError)):
+    with patch("app.controllers.auth_controller.jwt_bearer.verify_access_token", side_effect=ExpiredSignatureError):
         response = client.post("/check_token", json={"token": "expiredtoken"}, headers=headers)
         assert response.status_code == 401
         assert response.json()["detail"] == "token_expired"
@@ -194,10 +194,18 @@ def test_check_token_expired(client):
 
 def test_check_token_invalid(client):
     headers = {"Authorization": "Bearer faketoken"}
-    with patch("app.controllers.auth_controller.jwt_bearer.verify_access_token", new=AsyncMock(side_effect=InvalidTokenError)):
+    with patch("app.controllers.auth_controller.jwt_bearer.verify_access_token", side_effect=InvalidTokenError):
         response = client.post("/check_token", json={"token": "invalidtoken"}, headers=headers)
         assert response.status_code == 401
         assert response.json()["detail"] == "token_invalid"
+
+
+def test_check_token_unexpected_error(client):
+    headers = {"Authorization": "Bearer faketoken"}
+    with patch("app.controllers.auth_controller.jwt_bearer.verify_access_token", side_effect=Exception("Unexpected error")):
+        response = client.post("/check_token", json={"token": "badtoken"}, headers=headers)
+        assert response.status_code == 500
+        assert response.json()["detail"] == "token_error"
 
 
 # --- REFRESH TOKEN ---
@@ -221,9 +229,40 @@ def test_refresh_token_success(client, mock_auth_service):
     mock_auth_service.is_token_revoked.return_value = False
 
     client.cookies.set("refresh_token", "validtoken")
-    with patch("app.controllers.auth_controller.jwt_bearer.verify_refresh_token", new=AsyncMock(return_value={"user_id": "1"})), \
-         patch("app.controllers.auth_controller.jwt_bearer.create_access_token", new=AsyncMock(return_value="new_access")):
+    with patch("app.controllers.auth_controller.jwt_bearer.verify_refresh_token", return_value={"user_id": "1"}), \
+         patch("app.controllers.auth_controller.jwt_bearer.create_access_token", return_value="new_access"):
         response = client.post("/refresh_token")
         print(response.json())
         assert response.status_code == 200
         assert response.json()["detail"] == "refresh_token_success"
+
+
+def test_refresh_token_expired(client, mock_auth_service):
+    mock_auth_service.is_token_revoked.return_value = False
+
+    client.cookies.set("refresh_token", "expiredtoken")
+    with patch("app.controllers.auth_controller.jwt_bearer.verify_refresh_token", side_effect=ExpiredSignatureError):
+        response = client.post("/refresh_token")
+        assert response.status_code == 401
+        assert response.json()["detail"] == "token_expired"
+
+
+def test_refresh_token_invalid(client, mock_auth_service):
+    mock_auth_service.is_token_revoked.return_value = False
+
+    client.cookies.set("refresh_token", "invalidtoken")
+    with patch("app.controllers.auth_controller.jwt_bearer.verify_refresh_token", side_effect=InvalidTokenError):
+        response = client.post("/refresh_token")
+        assert response.status_code == 401
+        assert response.json()["detail"] == "token_invalid"
+
+
+def test_refresh_token_unexpected_error(client, mock_auth_service):
+    mock_auth_service.is_token_revoked.return_value = False
+
+    client.cookies.set("refresh_token", "badtoken")
+    with patch("app.controllers.auth_controller.jwt_bearer.verify_refresh_token", side_effect=Exception("Unexpected error")):
+        response = client.post("/refresh_token")
+        assert response.status_code == 500
+        assert response.json()["detail"] == "token_error"
+

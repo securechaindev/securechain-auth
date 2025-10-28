@@ -23,10 +23,13 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest==8.4.1",
-    "pytest-asyncio==1.1.0",
-    "httpx==0.28.1",
     "ruff==0.14.0",
+]
+test = [
+    "pytest==8.4.2",
+    "pytest-asyncio==1.2.0",
+    "pytest-cov>=7.0.0",
+    "httpx==0.28.1",
 ]
 
 [build-system]
@@ -60,3 +63,26 @@ ignore = [
     "A004",  # Module attribute shadowing
     "B008",  # Do not perform function calls in argument defaults (FastAPI Depends pattern)
 ]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=app",
+    "--cov-report=term-missing",
+    "--cov-report=html:htmlcov",
+    "--cov-report=xml",
+]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "slow: Slow running tests",
+    "database: Tests requiring database",
+]
+asyncio_mode = "auto"
