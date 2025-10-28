@@ -55,7 +55,7 @@ async def signup(
         )
     await auth_service.create_user({
         "email": sign_up_request.email,
-        "password": await password_encoder.hash(sign_up_request.password)
+        "password": password_encoder.hash(sign_up_request.password)
     })
     return JSONResponse(
         status_code=status.HTTP_200_OK,
@@ -91,7 +91,7 @@ async def login(
             ),
         )
     hashed_pass = user.password
-    if not await password_encoder.verify(login_request.password, hashed_pass):
+    if not password_encoder.verify(login_request.password, hashed_pass):
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content=json_encoder.encode(
@@ -101,8 +101,8 @@ async def login(
             ),
         )
     user_id = str(user.id)
-    access_token = await jwt_bearer.create_access_token(user_id)
-    refresh_token = await jwt_bearer.create_refresh_token(user_id)
+    access_token = jwt_bearer.create_access_token(user_id)
+    refresh_token = jwt_bearer.create_refresh_token(user_id)
     response = JSONResponse(
         status_code=status.HTTP_200_OK,
         content=json_encoder.encode({
@@ -110,7 +110,7 @@ async def login(
             "detail": "login_success",
         }),
     )
-    await jwt_bearer.set_auth_cookies(response, access_token, refresh_token)
+    jwt_bearer.set_auth_cookies(response, access_token, refresh_token)
     return response
 
 
@@ -135,7 +135,7 @@ async def logout(
                 "detail": "missing_refresh_token",
             }),
         )
-    await auth_service.create_revoked_token(refresh_token, await jwt_bearer.read_expiration_date(refresh_token))
+    await auth_service.create_revoked_token(refresh_token, jwt_bearer.read_expiration_date(refresh_token))
     response = JSONResponse(
         status_code=status.HTTP_200_OK,
         content=json_encoder.encode({
@@ -196,7 +196,7 @@ async def change_password(
                 }
             ),
         )
-    if not await password_encoder.verify(change_password_request.old_password, user.password):
+    if not password_encoder.verify(change_password_request.old_password, user.password):
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content=json_encoder.encode(
@@ -205,7 +205,7 @@ async def change_password(
                 }
             ),
         )
-    encrypted_password = await password_encoder.hash(change_password_request.new_password)
+    encrypted_password = password_encoder.hash(change_password_request.new_password)
     user.password = encrypted_password
     await auth_service.update_user_password(user)
     return JSONResponse(
@@ -237,7 +237,7 @@ async def check_token(request: Request, verify_token_request: VerifyTokenRequest
             }),
         )
     try:
-        payload = await jwt_bearer.verify_access_token(token)
+        payload = jwt_bearer.verify_access_token(token)
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content=json_encoder.encode({
@@ -300,8 +300,8 @@ async def refresh_token_endpoint(
             }),
         )
     try:
-        payload = await jwt_bearer.verify_refresh_token(refresh_token)
-        new_access_token = await jwt_bearer.create_access_token(payload["user_id"])
+        payload = jwt_bearer.verify_refresh_token(refresh_token)
+        new_access_token = jwt_bearer.create_access_token(payload["user_id"])
         response = JSONResponse(
             status_code=status.HTTP_200_OK,
             content=json_encoder.encode({
