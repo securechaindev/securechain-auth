@@ -1,4 +1,3 @@
-from functools import lru_cache
 from logging import INFO, Formatter, getLogger
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -44,8 +43,5 @@ class LoggerManager:
     def debug(self, msg: str, *args, **kwargs):
         self.logger.debug(msg, *args, **kwargs)
 
-@lru_cache
-def get_logger() -> LoggerManager:
-    return LoggerManager("logs/errors.log")
 
-logger: LoggerManager = get_logger()
+logger: LoggerManager = LoggerManager("logs/errors.log")
