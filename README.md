@@ -74,9 +74,9 @@ The project uses Python 3.13 and the dependencies are managed with `uv` (ultra-f
 
 With uv:
 ```bash
-uv sync --extra dev
+uv sync --extra test
 # Or
-uv pip install ".[dev]"
+uv pip install ".[test]"
 ```
 
 ### Run tests
@@ -86,6 +86,20 @@ uv run pytest -v
 
 ## Contributing
 Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
+
+### Install dev dependencies
+
+With uv:
+```bash
+uv sync --extra dev
+# Or
+uv pip install ".[dev]"
+```
+
+### Run ruff
+```bash
+uv run ruff check .
+```
 
 ## License
 [GNU General Public License 3.0](https://www.gnu.org/licenses/gpl-3.0.html)
