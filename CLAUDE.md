@@ -5,7 +5,7 @@
 ## 📋 General Information
 
 - **Project Name**: securechain-auth
-- **Version**: 1.0.19
+- **Version**: 1.1.1
 - **Description**: Authentication and user registration backend for Secure Chain tools
 - **Framework**: FastAPI 0.116.1
 - **Python**: 3.13+
@@ -51,10 +51,16 @@ securechain-auth/
 │       ├── expired_token_exception.py
 │       └── invalid_token_exception.py
 ├── tests/                        # Tests with pytest
-│   ├── conftest.py              # Pytest configuration
-│   ├── controllers/             # Controller tests
-│   ├── services/                # Service tests
-│   └── models/                  # Model tests
+│   ├── conftest.py              # Pytest configuration and fixtures
+│   ├── unit/                    # Unit tests (56 tests)
+│   │   ├── controllers/         # Controller tests
+│   │   ├── services/            # Service tests
+│   │   ├── models/              # Model tests
+│   │   ├── utils/               # Utility tests
+│   │   └── exceptions/          # Exception handler tests
+│   ├── integration/             # Integration tests (3 tests)
+│   │   └── test_api_integration.py
+│   └── README.md                # Testing documentation
 ├── dev/                         # Development configuration
 │   ├── docker-compose.yml       # Development compose
 │   └── Dockerfile               # Development Dockerfile with hot-reload
@@ -68,7 +74,15 @@ securechain-auth/
 
 ### Code Organization Pattern
 
-The project follows a **dependency injection pattern** for services with **direct instantiation** for utilities:
+The project follows a **layered dependency pattern** with different instantiation strategies based on resource requirements:
+
+#### Pattern Decision Matrix
+
+| Component Type | Pattern | Reason | Example |
+|---------------|---------|--------|---------|
+| **Database Connections** | Singleton (`__new__`) | Manages expensive resources (connection pools) | `DatabaseManager` |
+| **Stateful Services** | Dependency Injection (`Depends()`) | Per-request lifecycle, needs mocking | `AuthService` |
+| **Stateless Utilities** | Module-level instance | No state, no resources, pure functions | `jwt_bearer`, `password_encoder` |
 
 #### Controllers (`app/controllers/`)
 Controllers use FastAPI's dependency injection (`Depends()`) for services, but direct instantiation for utilities:
@@ -80,12 +94,12 @@ from app.services import AuthService
 from app.utils import JWTBearer, JSONEncoder, PasswordEncoder
 from app.database import DatabaseManager, get_database_manager
 
-# Module-level utility instances (singletons per module)
+# Module-level utility instances (stateless, no resources)
 jwt_bearer = JWTBearer()
 json_encoder = JSONEncoder()
 password_encoder = PasswordEncoder()
 
-# Dependency injection for services
+# Dependency injection for services (stateful, needs lifecycle)
 def get_auth_service(db: DatabaseManager = Depends(get_database_manager)) -> AuthService:
     return AuthService(db)
 
@@ -93,28 +107,69 @@ def get_auth_service(db: DatabaseManager = Depends(get_database_manager)) -> Aut
 async def endpoint(
     auth_service: AuthService = Depends(get_auth_service)
 ):
-    # Injected service
+    # Injected service (per-request)
     user = await auth_service.read_user_by_email(email)
-    # Direct utility usage
-    payload = await jwt_bearer.verify_access_token(token)
+    # Direct utility usage (shared instance)
+    payload = jwt_bearer.verify_access_token(token)
     response = json_encoder.encode(data)
-    hashed = await password_encoder.hash(password)
+    hashed = password_encoder.hash(password)
 ```
 
 **Benefits**:
 - ✅ Proper lifecycle management for database connections
 - ✅ Easy to test with `app.dependency_overrides`
-- ✅ Clear separation: DI for stateful services, direct for utilities
+- ✅ Clear separation: Singleton for resources, DI for services, direct for utilities
 - ✅ Follows FastAPI best practices
+- ✅ No unnecessary complexity for stateless components
 
 #### Database Manager (`app/database.py`)
-- **DatabaseManager**: Singleton pattern for database connections
-- Manages connection pools for MongoDB (Motor/Odmantic) and Neo4j
-- Lifecycle management: `initialize()` on startup, `close()` on shutdown
-- Provides: `get_odmantic_engine()`, `get_neo4j_driver()`
+
+**Singleton Pattern** (`__new__` override) for resource management:
 
 ```python
-# In main.py
+class DatabaseManager:
+    _instance: "DatabaseManager | None" = None
+    _mongo_client: AsyncIOMotorClient | None = None
+    _neo4j_driver: AsyncDriver | None = None
+    _odmantic_engine: AIOEngine | None = None
+
+    def __new__(cls) -> "DatabaseManager":
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    async def initialize(self) -> None:
+        # Create connection pools for MongoDB and Neo4j
+        pass
+
+    async def close(self) -> None:
+        # Close all connections
+        pass
+
+    def get_odmantic_engine(self) -> AIOEngine:
+        if self._odmantic_engine is None:
+            raise RuntimeError("Database not initialized. Call initialize() first.")
+        return self._odmantic_engine
+
+    def get_neo4j_driver(self) -> AsyncDriver:
+        if self._neo4j_driver is None:
+            raise RuntimeError("Database not initialized. Call initialize() first.")
+        return self._neo4j_driver
+```
+
+**Factory function** for dependency injection:
+```python
+_db_manager: DatabaseManager | None = None
+
+def get_database_manager() -> DatabaseManager:
+    global _db_manager
+    if _db_manager is None:
+        _db_manager = DatabaseManager()
+    return _db_manager
+```
+
+**Lifecycle management** in `main.py`:
+```python
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     db_manager = get_database_manager()
@@ -125,18 +180,18 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 ```
 
-**Factory function** for dependency injection:
-```python
-def get_database_manager() -> DatabaseManager:
-    return DatabaseManager()
-```
-
-**Benefits**:
-- ✅ Singleton pattern ensures single connection pool
-- ✅ Proper connection lifecycle management
+**Why Singleton here?**
+- ✅ Ensures **single connection pool** for MongoDB and Neo4j
+- ✅ Prevents resource exhaustion from multiple connection pools
+- ✅ Proper connection lifecycle management (startup/shutdown)
 - ✅ Configured connection pooling (min/max pool size, timeouts)
 - ✅ Centralized database configuration
 - ✅ Easy to mock in tests with `app.dependency_overrides`
+
+**When NOT to use Singleton:**
+- ❌ Stateless utilities (use module-level instances instead)
+- ❌ Components without expensive resources
+- ❌ When you need multiple instances with different configurations
 
 #### Services (`app/services/`)
 - **AuthService**: Business logic for authentication
@@ -158,13 +213,14 @@ def get_auth_service(db: DatabaseManager = Depends(get_database_manager)) -> Aut
 ```
 
 #### Utilities (`app/utils/`)
-All utilities are classes that are instantiated directly at module level:
+All utilities are classes that are instantiated directly at module level as **stateless singletons**. These are **synchronous methods** (not async) as they don't perform I/O operations:
 
 - **JWTBearer**: JWT token operations (create, verify, set cookies)
   ```python
   jwt_bearer = JWTBearer()
-  token = await jwt_bearer.create_access_token(data)
-  payload = await jwt_bearer.verify_access_token(token)
+  token = jwt_bearer.create_access_token(data)
+  payload = jwt_bearer.verify_access_token(token)
+  jwt_bearer.set_auth_cookies(response, access_token, refresh_token)
   ```
 
 - **JSONEncoder**: JSON serialization with custom types (ObjectId, datetime)
@@ -176,9 +232,18 @@ All utilities are classes that are instantiated directly at module level:
 - **PasswordEncoder**: Password hashing and verification (bcrypt)
   ```python
   password_encoder = PasswordEncoder()
-  hashed = await password_encoder.hash(password)
-  is_valid = await password_encoder.verify(password, hashed)
+  hashed = password_encoder.hash(password)
+  is_valid = password_encoder.verify(password, hashed)
   ```
+
+**Why module-level instances (not Singleton pattern)?**
+- ✅ Stateless components (no expensive resources to manage)
+- ✅ More pythonic than explicit Singleton
+- ✅ Same result: single instance per module
+- ✅ Simpler code, no `__new__` override needed
+- ✅ Easy to patch in tests with `unittest.mock.patch`
+
+**Note**: These utilities use synchronous methods (not async/await) because they perform CPU-bound operations (hashing, encoding) rather than I/O-bound operations.
 
 ## 🔧 Technology Stack
 
@@ -203,7 +268,8 @@ All utilities are classes that are instantiated directly at module level:
 - **email-validator** (2.2.0): Email validation
 
 ### Development
-- **pytest** (8.4.1) + **pytest-asyncio** (1.1.0): Testing
+- **pytest** (8.4.2) + **pytest-asyncio** (1.2.0): Testing
+- **pytest-cov** (7.0.0): Test coverage
 - **httpx** (0.28.1): HTTP client for tests
 - **ruff** (0.14.0): Extremely fast linter and formatter
 
@@ -325,32 +391,83 @@ DOCS_URL=/docs  # Leave empty in production to disable
 
 ## 🧪 Testing
 
-```bash
-# Install development dependencies
-uv sync --extra dev
-
-# Run all tests
-pytest tests
-
-# With verbosity
-pytest tests -v
-
-# With coverage
-pytest tests --cov=app --cov-report=html
-```
+The project has a comprehensive test suite with **86% coverage** organized into unit and integration tests.
 
 ### Test Structure
-- `tests/controllers/`: HTTP endpoint tests
-- `tests/services/`: Business logic tests
-- `tests/models/`: Data model tests
-- `conftest.py`: Shared fixtures (HTTP client, DB mocks)
+
+```
+tests/
+├── unit/                    # 56 unit tests
+│   ├── controllers/        # Endpoint tests with mocked dependencies
+│   ├── models/             # Data model validation tests
+│   ├── services/           # Business logic tests
+│   ├── utils/              # Utility function tests
+│   └── exceptions/         # Exception handler tests
+├── integration/            # 3 integration tests
+│   └── test_api_integration.py
+├── conftest.py             # Shared fixtures and configuration
+└── README.md               # Testing documentation
+```
+
+### Running Tests
+
+```bash
+# Install test dependencies
+uv sync --extra test
+
+# Run all tests (59 total)
+pytest tests/
+
+# Run only unit tests (56 tests)
+pytest tests/unit/
+pytest -m unit
+
+# Run only integration tests (3 tests)
+pytest tests/integration/
+pytest -m integration
+
+# With coverage report
+pytest tests/ --cov=app --cov-report=term-missing
+
+# Generate HTML coverage report
+pytest tests/ --cov=app --cov-report=html
+# View at: htmlcov/index.html
+
+# With verbosity
+pytest tests/ -v
+```
+
+### Coverage Report
+
+Current coverage: **86%**
+
+High coverage modules (90%+):
+- Controllers: 99%
+- Models: 100%
+- Services: 100%
+- Schemas & Validators: 100%
+- Utils: 86-100%
+
+Lower coverage (by design):
+- Database connection code: 36% (requires real DB for testing)
+- Main app initialization: 86%
+- Middleware: 90%
 
 ### Testing Strategy
 
-The project uses **dependency injection mocking** with `app.dependency_overrides` for testing:
+The project uses **dependency injection mocking** with `app.dependency_overrides` for testing. Tests are automatically marked based on their location (unit/integration).
+
+#### Test Configuration (conftest.py)
 
 ```python
-# Example: conftest.py - Setup mocks
+def pytest_collection_modifyitems(items):
+    """Automatically mark tests based on their location."""
+    for item in items:
+        if "unit" in str(item.fspath):
+            item.add_marker(pytest.mark.unit)
+        elif "integration" in str(item.fspath):
+            item.add_marker(pytest.mark.integration)
+
 @pytest.fixture(scope="session")
 def mock_db_manager():
     """Create a mock DatabaseManager for all tests."""
@@ -370,19 +487,11 @@ def mock_auth_service():
     mock_auth.create_revoked_token = AsyncMock()
     return mock_auth
 
-@pytest.fixture(scope="session")
-def mock_jwt_bearer():
-    """Mock the jwt_bearer dependency for all protected routes."""
-    class MockJWTBearer:
-        async def __call__(self, request):
-            return {"user_id": "abc123"}
-    return MockJWTBearer()
-
 @pytest.fixture(scope="function")
-def client(mock_db_manager, mock_auth_service, mock_jwt_bearer):
+def client(mock_db_manager, mock_auth_service):
     """Create a TestClient with dependency overrides for each test."""
     from app.main import app
-    from app.controllers.auth_controller import get_auth_service, jwt_bearer
+    from app.controllers.auth_controller import get_auth_service
     from app.database import get_database_manager
     
     # Disable lifespan for tests
@@ -395,14 +504,45 @@ def client(mock_db_manager, mock_auth_service, mock_jwt_bearer):
     # Override dependencies
     app.dependency_overrides[get_database_manager] = lambda: mock_db_manager
     app.dependency_overrides[get_auth_service] = lambda: mock_auth_service
-    app.dependency_overrides[jwt_bearer] = lambda: mock_jwt_bearer
     
     with TestClient(app) as c:
         yield c
     
     app.dependency_overrides.clear()
+```
 
-# Example: test_auth_service.py - Service tests
+#### Unit Test Example
+
+```python
+# tests/unit/controllers/test_auth_controller.py
+def test_login_success(client, mock_auth_service):
+    mock_auth_service.read_user_by_email.return_value = User(email="test@example.com", password="hashed")
+
+    with patch("app.controllers.auth_controller.password_encoder.verify", return_value=True), \
+         patch("app.controllers.auth_controller.jwt_bearer.create_access_token", return_value="access"), \
+         patch("app.controllers.auth_controller.jwt_bearer.create_refresh_token", return_value="refresh"):
+        response = client.post("/login", json={"email": "test@example.com", "password": "13pAssword*"})
+        assert response.status_code == 200
+        assert response.json()["detail"] == "login_success"
+```
+
+#### Integration Test Example
+
+```python
+# tests/integration/test_api_integration.py
+def test_health_endpoint_integration(client):
+    """Test that the health endpoint returns OK status."""
+    response = client.get("/health")
+    
+    assert response.status_code == 200
+    data = response.json()
+    assert data["detail"] == "healthy"
+```
+
+#### Service Test Example
+
+```python
+# tests/unit/services/test_auth_service.py
 @pytest.mark.asyncio
 async def test_create_user_saves_user_and_creates_graph():
     mock_engine = AsyncMock()
@@ -518,6 +658,28 @@ uv sync --upgrade
 
 ### Architecture Patterns
 
+This section explains **when and why** to use each pattern in the project.
+
+#### Pattern Decision Guide
+
+**Use Singleton (`__new__` override) when:**
+- ✅ Managing **expensive resources** (database connections, connection pools)
+- ✅ Need **lifecycle management** (initialize/close)
+- ✅ Want to **prevent multiple instances** that would waste resources
+- ✅ Example: `DatabaseManager` (manages MongoDB and Neo4j connection pools)
+
+**Use Dependency Injection (`Depends()`) when:**
+- ✅ Component has **per-request lifecycle** (created/destroyed each request)
+- ✅ Needs to be **easily mocked** in tests
+- ✅ Has **dependencies** that need to be injected
+- ✅ Example: `AuthService` (depends on `DatabaseManager`, mocked in tests)
+
+**Use Module-level instance when:**
+- ✅ Component is **stateless** (no internal state to manage)
+- ✅ Doesn't manage **expensive resources**
+- ✅ Contains only **pure functions** or CPU-bound operations
+- ✅ Example: `jwt_bearer`, `password_encoder`, `json_encoder` (just utilities)
+
 #### ✅ Dependency Injection for Services (Current Pattern)
 ```python
 # In controllers - use FastAPI Depends()
@@ -543,9 +705,9 @@ json_encoder = JSONEncoder()
 password_encoder = PasswordEncoder()
 
 # Usage
-token = await jwt_bearer.create_access_token(user_id)
+token = jwt_bearer.create_access_token(user_id)
 response = json_encoder.encode(data)
-hashed = await password_encoder.hash(password)
+hashed = password_encoder.hash(password)
 ```
 
 **Why**: Stateless utilities don't need lifecycle management or injection
@@ -575,21 +737,34 @@ class DatabaseManager:
         pass
 
 def get_database_manager() -> DatabaseManager:
-    return DatabaseManager()
+    global _db_manager
+    if _db_manager is None:
+        _db_manager = DatabaseManager()
+    return _db_manager
 ```
 
-**Why**: Single connection pool, proper resource management
+**Why**: Single connection pool, proper resource management, prevents resource exhaustion
 
 #### ✅ Dependency Hierarchy
 ```
-DatabaseManager (singleton)
+DatabaseManager (singleton with __new__)
     ↓ (injected via Depends)
-AuthService (per request)
+AuthService (per request via Depends)
     ↓ (injected via Depends)
 Endpoints (request handlers)
 ```
 
 Utilities (`jwt_bearer`, `json_encoder`, `password_encoder`) are used directly without injection.
+
+#### ❌ Anti-patterns to Avoid
+
+**DON'T create a unified dependencies.py file** with all singletons unless:
+- You have 5+ services managing resources
+- Complex initialization dependencies between services
+- Need conditional service selection (prod vs dev implementations)
+
+**Current project size**: 1 resource manager (DatabaseManager) + 3 stateless utilities  
+**Conclusion**: Current pattern is optimal, no need for additional abstraction
 
 ## 🔗 Important Links
 
