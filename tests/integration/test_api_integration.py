@@ -10,11 +10,13 @@ def client():
 
 
 def test_health_endpoint_integration(client):
+    """Test that the health endpoint returns OK status."""
     response = client.get("/health")
 
     assert response.status_code == 200
     data = response.json()
-    assert data["detail"] == "healthy"
+    assert data["code"] == "healthy"
+    assert "message" in data
 
 
 def test_api_returns_json_content_type(client):

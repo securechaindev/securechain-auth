@@ -4,6 +4,7 @@ from fastapi import APIRouter, Body, Depends, Request, status
 from fastapi.responses import JSONResponse
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 
+from app.constants import ResponseCode, ResponseMessage
 from app.database import DatabaseManager, get_database_manager
 from app.limiter import limiter
 from app.schemas.auth import (
@@ -49,7 +50,8 @@ async def signup(
             status_code=status.HTTP_409_CONFLICT,
             content=json_encoder.encode(
                 {
-                    "detail": "user_already_exists",
+                    "code": ResponseCode.USER_ALREADY_EXISTS,
+                    "message": ResponseMessage.USER_ALREADY_EXISTS,
                 }
             ),
         )
@@ -61,7 +63,8 @@ async def signup(
         status_code=status.HTTP_200_OK,
         content=json_encoder.encode(
             {
-                "detail": "signup_success",
+                "code": ResponseCode.SIGNUP_SUCCESS,
+                "message": ResponseMessage.SIGNUP_SUCCESS,
             }
         ),
     )
@@ -86,7 +89,8 @@ async def login(
             status_code=status.HTTP_400_BAD_REQUEST,
             content=json_encoder.encode(
                 {
-                    "detail": "user_no_exist",
+                    "code": ResponseCode.USER_NOT_FOUND,
+                    "message": ResponseMessage.USER_NOT_FOUND,
                 }
             ),
         )
@@ -96,7 +100,8 @@ async def login(
             status_code=status.HTTP_400_BAD_REQUEST,
             content=json_encoder.encode(
                 {
-                    "detail": "user_incorrect_password",
+                    "code": ResponseCode.INCORRECT_PASSWORD,
+                    "message": ResponseMessage.INCORRECT_PASSWORD,
                 }
             ),
         )
@@ -107,7 +112,8 @@ async def login(
         status_code=status.HTTP_200_OK,
         content=json_encoder.encode({
             "user_id": user_id,
-            "detail": "login_success",
+            "code": ResponseCode.LOGIN_SUCCESS,
+            "message": ResponseMessage.LOGIN_SUCCESS,
         }),
     )
     jwt_bearer.set_auth_cookies(response, access_token, refresh_token)
@@ -132,14 +138,16 @@ async def logout(
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content=json_encoder.encode({
-                "detail": "missing_refresh_token",
+                "code": ResponseCode.MISSING_REFRESH_TOKEN,
+                "message": ResponseMessage.MISSING_REFRESH_TOKEN,
             }),
         )
     await auth_service.create_revoked_token(refresh_token, jwt_bearer.read_expiration_date(refresh_token))
     response = JSONResponse(
         status_code=status.HTTP_200_OK,
         content=json_encoder.encode({
-            "detail": "logout_success",
+            "code": ResponseCode.LOGOUT_SUCCESS,
+            "message": ResponseMessage.LOGOUT_SUCCESS,
         }),
     )
     response.delete_cookie("refresh_token")
@@ -166,7 +174,8 @@ async def account_exists(
         content=json_encoder.encode(
             {
                 "user_exists": True if user else False,
-                "detail": "account_exists_success",
+                "code": ResponseCode.ACCOUNT_EXISTS_SUCCESS,
+                "message": ResponseMessage.ACCOUNT_EXISTS_SUCCESS,
             }
         ),
     )
@@ -192,7 +201,8 @@ async def change_password(
             status_code=status.HTTP_400_BAD_REQUEST,
             content=json_encoder.encode(
                 {
-                    "detail": "user_no_exist",
+                    "code": ResponseCode.USER_NOT_FOUND,
+                    "message": ResponseMessage.USER_NOT_FOUND,
                 }
             ),
         )
@@ -201,7 +211,8 @@ async def change_password(
             status_code=status.HTTP_400_BAD_REQUEST,
             content=json_encoder.encode(
                 {
-                    "detail": "user_invalid_old_password",
+                    "code": ResponseCode.INVALID_OLD_PASSWORD,
+                    "message": ResponseMessage.INVALID_OLD_PASSWORD,
                 }
             ),
         )
@@ -212,7 +223,8 @@ async def change_password(
         status_code=status.HTTP_200_OK,
         content=json_encoder.encode(
             {
-                "detail": "change_password_success",
+                "code": ResponseCode.CHANGE_PASSWORD_SUCCESS,
+                "message": ResponseMessage.CHANGE_PASSWORD_SUCCESS,
             }
         ),
     )
@@ -233,7 +245,8 @@ async def check_token(request: Request, verify_token_request: VerifyTokenRequest
             status_code=status.HTTP_400_BAD_REQUEST,
             content=json_encoder.encode({
                 "valid": False,
-                "detail": "token_missing",
+                "code": ResponseCode.TOKEN_MISSING,
+                "message": ResponseMessage.TOKEN_MISSING,
             }),
         )
     try:
@@ -243,7 +256,8 @@ async def check_token(request: Request, verify_token_request: VerifyTokenRequest
             content=json_encoder.encode({
                 "valid": True,
                 "user_id": payload.get("user_id"),
-                "detail": "token_verification_success",
+                "code": ResponseCode.TOKEN_VALID,
+                "message": ResponseMessage.TOKEN_VALID,
             }),
         )
     except ExpiredSignatureError:
@@ -251,7 +265,8 @@ async def check_token(request: Request, verify_token_request: VerifyTokenRequest
             status_code=status.HTTP_401_UNAUTHORIZED,
             content=json_encoder.encode({
                 "valid": False,
-                "detail": "token_expired",
+                "code": ResponseCode.TOKEN_EXPIRED,
+                "message": ResponseMessage.TOKEN_EXPIRED,
             }),
         )
     except InvalidTokenError:
@@ -259,7 +274,8 @@ async def check_token(request: Request, verify_token_request: VerifyTokenRequest
             status_code=status.HTTP_401_UNAUTHORIZED,
             content=json_encoder.encode({
                 "valid": False,
-                "detail": "token_invalid",
+                "code": ResponseCode.TOKEN_INVALID,
+                "message": ResponseMessage.TOKEN_INVALID,
             }),
         )
     except Exception:
@@ -267,7 +283,8 @@ async def check_token(request: Request, verify_token_request: VerifyTokenRequest
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content=json_encoder.encode({
                 "valid": False,
-                "detail": "token_error",
+                "code": ResponseCode.TOKEN_ERROR,
+                "message": ResponseMessage.TOKEN_ERROR,
             }),
         )
 
@@ -289,14 +306,16 @@ async def refresh_token_endpoint(
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content=json_encoder.encode({
-                "detail": "missing_refresh_token",
+                "code": ResponseCode.MISSING_REFRESH_TOKEN,
+                "message": ResponseMessage.MISSING_REFRESH_TOKEN,
             }),
         )
     if await auth_service.is_token_revoked(refresh_token):
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
             content=json_encoder.encode({
-                "detail": "token_revoked",
+                "code": ResponseCode.TOKEN_REVOKED,
+                "message": ResponseMessage.TOKEN_REVOKED,
             }),
         )
     try:
@@ -305,7 +324,8 @@ async def refresh_token_endpoint(
         response = JSONResponse(
             status_code=status.HTTP_200_OK,
             content=json_encoder.encode({
-                "detail": "refresh_token_success",
+                "code": ResponseCode.REFRESH_TOKEN_SUCCESS,
+                "message": ResponseMessage.REFRESH_TOKEN_SUCCESS,
             }),
         )
         response.set_cookie(
@@ -321,20 +341,23 @@ async def refresh_token_endpoint(
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
             content=json_encoder.encode({
-                "detail": "token_expired",
+                "code": ResponseCode.TOKEN_EXPIRED,
+                "message": ResponseMessage.TOKEN_EXPIRED,
             }),
         )
     except InvalidTokenError:
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
             content=json_encoder.encode({
-                "detail": "token_invalid",
+                "code": ResponseCode.TOKEN_INVALID,
+                "message": ResponseMessage.TOKEN_INVALID,
             }),
         )
     except Exception:
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content=json_encoder.encode({
-                "detail": "token_error",
+                "code": ResponseCode.TOKEN_ERROR,
+                "message": ResponseMessage.TOKEN_ERROR,
             }),
         )

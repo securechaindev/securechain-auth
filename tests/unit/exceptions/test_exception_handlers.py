@@ -39,8 +39,9 @@ def test_request_validation_exception_handler(app_with_handlers):
 
     assert response.status_code == 422
     data = response.json()
-    assert "detail" in data
-    assert data["detail"] == "validation_error"
+    assert "code" in data
+    assert data["code"] == "validation_error"
+    assert "message" in data
 
 
 def test_http_exception_handler(app_with_handlers):
@@ -50,5 +51,6 @@ def test_http_exception_handler(app_with_handlers):
 
     assert response.status_code == 404
     data = response.json()
-    assert "detail" in data
-    assert data["detail"] == "not_found"
+    assert "code" in data
+    assert data["code"] == "http_error"
+    assert "message" in data
