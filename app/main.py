@@ -39,8 +39,8 @@ app = FastAPI(
         "email": "hi@securechain.dev",
     },
     license_info={
-        "name": "License :: OSI Approved :: Apache Software License",
-        "url": "https://www.apache.org/licenses/LICENSE-2.0",
+        "name": "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+        "url": "https://www.gnu.org/licenses/gpl-3.0.html",
     },
 )
 
