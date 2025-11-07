@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from motor.motor_asyncio import AsyncIOMotorClient
 from neo4j import AsyncDriver, AsyncGraphDatabase
 from odmantic import AIOEngine
@@ -8,12 +10,12 @@ from app.settings import settings
 
 
 class DatabaseManager:
-    instance: "DatabaseManager | None" = None
+    instance: DatabaseManager | None = None
     mongo_client: AsyncIOMotorClient | None = None
     neo4j_driver: AsyncDriver | None = None
     odmantic_engine: AIOEngine | None = None
 
-    def __new__(cls) -> "DatabaseManager":
+    def __new__(cls) -> DatabaseManager:
         if cls.instance is None:
             cls.instance = super().__new__(cls)
         return cls.instance
