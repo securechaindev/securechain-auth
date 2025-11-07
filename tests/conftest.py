@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from app.controllers.auth_controller import get_auth_service
+from app.controllers.user_controller import get_user_service
 from app.database import get_database_manager
 
 
@@ -35,14 +35,14 @@ def mock_db_manager():
 
 
 @pytest.fixture(scope="session")
-def mock_auth_service():
-    mock_auth = MagicMock()
-    mock_auth.read_user_by_email = AsyncMock()
-    mock_auth.create_user = AsyncMock()
-    mock_auth.create_revoked_token = AsyncMock()
-    mock_auth.update_user_password = AsyncMock()
-    mock_auth.is_token_revoked = AsyncMock()
-    return mock_auth
+def mock_user_service():
+    mock_user = MagicMock()
+    mock_user.read_user_by_email = AsyncMock()
+    mock_user.create_user = AsyncMock()
+    mock_user.create_revoked_token = AsyncMock()
+    mock_user.update_user_password = AsyncMock()
+    mock_user.is_token_revoked = AsyncMock()
+    return mock_user
 
 
 @pytest.fixture(scope="session")
@@ -55,8 +55,8 @@ def mock_jwt_bearer():
 
 
 @pytest.fixture(scope="function")
-def client(mock_db_manager, mock_auth_service, mock_jwt_bearer):
-    from app.controllers.auth_controller import jwt_bearer
+def client(mock_db_manager, mock_user_service, mock_jwt_bearer):
+    from app.controllers.user_controller import jwt_bearer
     from app.main import app
 
     @asynccontextmanager
@@ -66,7 +66,7 @@ def client(mock_db_manager, mock_auth_service, mock_jwt_bearer):
     app.router.lifespan_context = test_lifespan
 
     app.dependency_overrides[get_database_manager] = lambda: mock_db_manager
-    app.dependency_overrides[get_auth_service] = lambda: mock_auth_service
+    app.dependency_overrides[get_user_service] = lambda: mock_user_service
     app.dependency_overrides[jwt_bearer] = lambda: mock_jwt_bearer
 
     with TestClient(app) as c:

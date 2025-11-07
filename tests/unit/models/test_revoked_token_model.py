@@ -2,7 +2,7 @@ from datetime import datetime
 
 from odmantic import Model
 
-from app.models.auth.RevokedToken import RevokedToken
+from app.models.auth.revoked_token import RevokedToken
 
 
 def test_revoked_token_model_fields():
