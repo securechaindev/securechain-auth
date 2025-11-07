@@ -28,37 +28,42 @@ securechain-auth/
 │   ├── http_session.py           # Shared HTTP session
 │   ├── logger.py                 # Logging configuration
 │   ├── controllers/              # Endpoint controllers
-│   │   ├── auth_controller.py    # Authentication and registration
+│   │   ├── user_controller.py    # User authentication and registration
+│   │   ├── api_key_controller.py # API Key management
 │   │   └── health_controller.py  # Health checks
 │   ├── services/                 # Business logic
-│   │   └── auth_service.py       # Authentication service
+│   │   ├── user_service.py       # User authentication service
+│   │   └── api_key_service.py    # API Key service
 │   ├── database_manager.py       # Database connection manager (Singleton)
 │   ├── constants.py              # Application constants and configurations
 │   ├── models/                   # Data models (ODM/OGM)
 │   │   └── auth/
 │   │       ├── User.py           # User model
+│   │       ├── ApiKey.py         # API Key model
 │   │       └── RevokedToken.py   # Revoked tokens
 │   ├── schemas/                  # Pydantic schemas for validation
 │   │   ├── auth/                 # Authentication schemas
 │   │   ├── patterns/             # Regex patterns for validation
 │   │   └── validators/           # Custom validators
 │   ├── utils/                    # Utilities
-│   │   ├── jwt_encoder.py        # JWT encoding/decoding (JWTBearer class)
+│   │   ├── jwt_bearer.py         # JWT encoding/decoding (JWTBearer class)
+│   │   ├── apikey_bearer.py      # API Key operations (ApiKeyBearer class)
 │   │   ├── password_encoder.py   # Password hashing (PasswordEncoder class)
 │   │   └── json_encoder.py       # Custom JSON encoder (JSONEncoder class)
 │   └── exceptions/               # Custom exceptions (one class per file)
 │       ├── not_authenticated_exception.py
 │       ├── expired_token_exception.py
-│       └── invalid_token_exception.py
+│       ├── invalid_token_exception.py
+│       └── api_key_name_exists_exception.py
 ├── tests/                        # Tests with pytest
 │   ├── conftest.py              # Pytest configuration and fixtures
-│   ├── unit/                    # Unit tests (56 tests)
+│   ├── unit/                    # 79 unit tests
 │   │   ├── controllers/         # Controller tests
-│   │   ├── services/            # Service tests
+│   │   ├── services/            # Service tests (UserService + ApiKeyService)
 │   │   ├── models/              # Model tests
 │   │   ├── utils/               # Utility tests
 │   │   └── exceptions/          # Exception handler tests
-│   ├── integration/             # Integration tests (3 tests)
+│   ├── integration/             # 3 integration tests
 │   │   └── test_api_integration.py
 │   └── README.md                # Testing documentation
 ├── dev/                         # Development configuration
@@ -81,16 +86,16 @@ The project follows a **layered dependency pattern** with different instantiatio
 | Component Type | Pattern | Reason | Example |
 |---------------|---------|--------|---------|
 | **Database Connections** | Singleton (`__new__`) | Manages expensive resources (connection pools) | `DatabaseManager` |
-| **Stateful Services** | Dependency Injection (`Depends()`) | Per-request lifecycle, needs mocking | `AuthService` |
-| **Stateless Utilities** | Module-level instance | No state, no resources, pure functions | `jwt_bearer`, `password_encoder` |
+| **Stateful Services** | Dependency Injection (`Depends()`) | Per-request lifecycle, needs mocking | `UserService`, `ApiKeyService` |
+| **Stateless Utilities** | Module-level instance | No state, no resources, pure functions | `jwt_bearer`, `password_encoder`, `apikey_bearer` |
 
 #### Controllers (`app/controllers/`)
 Controllers use FastAPI's dependency injection (`Depends()`) for services, but direct instantiation for utilities:
 
 ```python
-# Example: auth_controller.py
+# Example: user_controller.py
 from fastapi import Depends
-from app.services import AuthService
+from app.services import UserService
 from app.utils import JWTBearer, JSONEncoder, PasswordEncoder
 from app.database import DatabaseManager, get_database_manager
 
@@ -100,15 +105,15 @@ json_encoder = JSONEncoder()
 password_encoder = PasswordEncoder()
 
 # Dependency injection for services (stateful, needs lifecycle)
-def get_auth_service(db: DatabaseManager = Depends(get_database_manager)) -> AuthService:
-    return AuthService(db)
+def get_user_service(db: DatabaseManager = Depends(get_database_manager)) -> UserService:
+    return UserService(db)
 
 @router.post("/endpoint")
 async def endpoint(
-    auth_service: AuthService = Depends(get_auth_service)
+    user_service: UserService = Depends(get_user_service)
 ):
     # Injected service (per-request)
-    user = await auth_service.read_user_by_email(email)
+    user = await user_service.read_user_by_email(email)
     # Direct utility usage (shared instance)
     payload = jwt_bearer.verify_access_token(token)
     response = json_encoder.encode(data)
@@ -194,22 +199,31 @@ app = FastAPI(lifespan=lifespan)
 - ❌ When you need multiple instances with different configurations
 
 #### Services (`app/services/`)
-- **AuthService**: Business logic for authentication
+- **UserService**: Business logic for user authentication and management
+- **ApiKeyService**: Business logic for API key management
 - **Dependency injection**: Receives `DatabaseManager` as constructor parameter
 - Uses `DatabaseManager` for database access
 
 ```python
-class AuthService:
+class UserService:
     def __init__(self, db: DatabaseManager):
         self._db = db
         self._engine = db.get_odmantic_engine()
         self._driver = db.get_neo4j_driver()
+
+class ApiKeyService:
+    def __init__(self, db: DatabaseManager):
+        self._db = db
+        self._engine = db.get_odmantic_engine()
 ```
 
-**Factory function** for dependency injection:
+**Factory functions** for dependency injection:
 ```python
-def get_auth_service(db: DatabaseManager = Depends(get_database_manager)) -> AuthService:
-    return AuthService(db)
+def get_user_service(db: DatabaseManager = Depends(get_database_manager)) -> UserService:
+    return UserService(db)
+
+def get_api_key_service(db: DatabaseManager = Depends(get_database_manager)) -> ApiKeyService:
+    return ApiKeyService(db)
 ```
 
 #### Utilities (`app/utils/`)
@@ -221,6 +235,14 @@ All utilities are classes that are instantiated directly at module level as **st
   token = jwt_bearer.create_access_token(data)
   payload = jwt_bearer.verify_access_token(token)
   jwt_bearer.set_auth_cookies(response, access_token, refresh_token)
+  ```
+
+- **ApiKeyBearer**: API Key operations (generate, hash, verify)
+  ```python
+  apikey_bearer = ApiKeyBearer()
+  api_key = apikey_bearer.generate()
+  hashed = apikey_bearer.hash(api_key)
+  is_valid = apikey_bearer.verify(api_key, hashed)
   ```
 
 - **JSONEncoder**: JSON serialization with custom types (ObjectId, datetime)
@@ -397,10 +419,10 @@ The project has a comprehensive test suite with **86% coverage** organized into 
 
 ```
 tests/
-├── unit/                    # 56 unit tests
+├── unit/                    # 79 unit tests
 │   ├── controllers/        # Endpoint tests with mocked dependencies
 │   ├── models/             # Data model validation tests
-│   ├── services/           # Business logic tests
+│   ├── services/           # Business logic tests (UserService + ApiKeyService)
 │   ├── utils/              # Utility function tests
 │   └── exceptions/         # Exception handler tests
 ├── integration/            # 3 integration tests
@@ -415,10 +437,10 @@ tests/
 # Install test dependencies
 uv sync --extra test
 
-# Run all tests (59 total)
+# Run all tests (82 total)
 pytest tests/
 
-# Run only unit tests (56 tests)
+# Run only unit tests (79 tests)
 pytest tests/unit/
 pytest -m unit
 
@@ -439,17 +461,17 @@ pytest tests/ -v
 
 ### Coverage Report
 
-Current coverage: **86%**
+Current coverage: **84%**
 
 High coverage modules (90%+):
 - Controllers: 99%
 - Models: 100%
-- Services: 100%
+- Services: 100% (UserService + ApiKeyService)
 - Schemas & Validators: 100%
 - Utils: 86-100%
 
 Lower coverage (by design):
-- Database connection code: 36% (requires real DB for testing)
+- Database connection code: 37% (requires real DB for testing)
 - Main app initialization: 86%
 - Middleware: 90%
 
@@ -479,19 +501,21 @@ def mock_db_manager():
     return mock_db
 
 @pytest.fixture(scope="session")
-def mock_auth_service():
-    """Create a mock AuthService for controller tests."""
-    mock_auth = MagicMock()
-    mock_auth.read_user_by_email = AsyncMock()
-    mock_auth.create_user = AsyncMock()
-    mock_auth.create_revoked_token = AsyncMock()
-    return mock_auth
+def mock_user_service():
+    """Create a mock UserService for controller tests."""
+    mock_user = MagicMock()
+    mock_user.read_user_by_email = AsyncMock()
+    mock_user.create_user = AsyncMock()
+    mock_user.create_revoked_token = AsyncMock()
+    mock_user.update_user_password = AsyncMock()
+    mock_user.is_token_revoked = AsyncMock()
+    return mock_user
 
 @pytest.fixture(scope="function")
-def client(mock_db_manager, mock_auth_service):
+def client(mock_db_manager, mock_user_service):
     """Create a TestClient with dependency overrides for each test."""
     from app.main import app
-    from app.controllers.auth_controller import get_auth_service
+    from app.controllers.user_controller import get_user_service
     from app.database import get_database_manager
     
     # Disable lifespan for tests
@@ -503,7 +527,7 @@ def client(mock_db_manager, mock_auth_service):
     
     # Override dependencies
     app.dependency_overrides[get_database_manager] = lambda: mock_db_manager
-    app.dependency_overrides[get_auth_service] = lambda: mock_auth_service
+    app.dependency_overrides[get_user_service] = lambda: mock_user_service
     
     with TestClient(app) as c:
         yield c
@@ -514,16 +538,16 @@ def client(mock_db_manager, mock_auth_service):
 #### Unit Test Example
 
 ```python
-# tests/unit/controllers/test_auth_controller.py
-def test_login_success(client, mock_auth_service):
-    mock_auth_service.read_user_by_email.return_value = User(email="test@example.com", password="hashed")
+# tests/unit/controllers/test_user_controller.py
+def test_login_success(client, mock_user_service):
+    mock_user_service.read_user_by_email.return_value = User(email="test@example.com", password="hashed")
 
-    with patch("app.controllers.auth_controller.password_encoder.verify", return_value=True), \
-         patch("app.controllers.auth_controller.jwt_bearer.create_access_token", return_value="access"), \
-         patch("app.controllers.auth_controller.jwt_bearer.create_refresh_token", return_value="refresh"):
-        response = client.post("/login", json={"email": "test@example.com", "password": "13pAssword*"})
+    with patch("app.controllers.user_controller.password_encoder.verify", return_value=True), \
+         patch("app.controllers.user_controller.jwt_bearer.create_access_token", return_value="access"), \
+         patch("app.controllers.user_controller.jwt_bearer.create_refresh_token", return_value="refresh"):
+        response = client.post("/user/login", json={"email": "test@example.com", "password": "13pAssword*"})
         assert response.status_code == 200
-        assert response.json()["detail"] == "login_success"
+        assert response.json()["code"] == "login_success"
 ```
 
 #### Integration Test Example
@@ -542,7 +566,7 @@ def test_health_endpoint_integration(client):
 #### Service Test Example
 
 ```python
-# tests/unit/services/test_auth_service.py
+# tests/unit/services/test_user_service.py
 @pytest.mark.asyncio
 async def test_create_user_saves_user_and_creates_graph():
     mock_engine = AsyncMock()
@@ -555,7 +579,7 @@ async def test_create_user_saves_user_and_creates_graph():
     mock_db.get_neo4j_driver.return_value = mock_driver
     
     # Inject mock DatabaseManager to service
-    service = AuthService(mock_db)
+    service = UserService(mock_db)
     
     await service.create_user({"email": "test@example.com", "password": "pass"})
     
@@ -565,7 +589,7 @@ async def test_create_user_saves_user_and_creates_graph():
 
 **Key points**:
 - Use `app.dependency_overrides` to mock dependencies
-- Mock `DatabaseManager`, `AuthService`, and `jwt_bearer` at session scope
+- Mock `DatabaseManager`, `UserService`, `ApiKeyService`, and `jwt_bearer` at session scope
 - Create fresh `TestClient` per test function with overrides
 - Disable lifespan context manager for tests
 - For service tests, inject mock `DatabaseManager` to constructor
@@ -578,7 +602,7 @@ async def test_create_user_saves_user_and_creates_graph():
 - ✅ All async methods use `AsyncMock()`
 - ✅ Protected routes mock `jwt_bearer` dependency
 - ✅ Database connections never initialized in tests
-- ✅ All 41 tests passing without warnings
+- ✅ All 82 tests passing without warnings
 
 ## 📊 Logging
 
@@ -610,13 +634,18 @@ The system uses structured logging:
 - `GET /health`: Basic health check
 
 ### Auth
-- `POST /auth/signup`: User registration
-- `POST /auth/login`: User login
-- `POST /auth/refresh`: Renew access token
-- `POST /auth/logout`: Logout
-- `POST /auth/verify`: Verify token
-- `POST /auth/change-password`: Change password
-- `GET /auth/account-exists`: Check if account exists
+- `POST /user/signup`: User registration
+- `POST /user/login`: User login
+- `POST /user/refresh_token`: Renew access token
+- `POST /user/logout`: Logout
+- `POST /user/check_token`: Verify token
+- `POST /user/change_password`: Change password
+- `POST /user/account_exists`: Check if account exists
+
+### API Keys
+- `POST /apikey/create`: Create new API key
+- `GET /apikey/list`: List user's API keys
+- `POST /apikey/revoke`: Revoke an API key
 
 ## 🛠️ Useful Commands
 
@@ -672,27 +701,27 @@ This section explains **when and why** to use each pattern in the project.
 - ✅ Component has **per-request lifecycle** (created/destroyed each request)
 - ✅ Needs to be **easily mocked** in tests
 - ✅ Has **dependencies** that need to be injected
-- ✅ Example: `AuthService` (depends on `DatabaseManager`, mocked in tests)
+- ✅ Example: `UserService`, `ApiKeyService` (depends on `DatabaseManager`, mocked in tests)
 
 **Use Module-level instance when:**
 - ✅ Component is **stateless** (no internal state to manage)
 - ✅ Doesn't manage **expensive resources**
 - ✅ Contains only **pure functions** or CPU-bound operations
-- ✅ Example: `jwt_bearer`, `password_encoder`, `json_encoder` (just utilities)
+- ✅ Example: `jwt_bearer`, `password_encoder`, `json_encoder`, `apikey_bearer` (just utilities)
 
 #### ✅ Dependency Injection for Services (Current Pattern)
 ```python
 # In controllers - use FastAPI Depends()
 from fastapi import Depends
 
-def get_auth_service(db: DatabaseManager = Depends(get_database_manager)) -> AuthService:
-    return AuthService(db)
+def get_user_service(db: DatabaseManager = Depends(get_database_manager)) -> UserService:
+    return UserService(db)
 
 @router.post("/endpoint")
 async def endpoint(
-    auth_service: AuthService = Depends(get_auth_service)
+    user_service: UserService = Depends(get_user_service)
 ):
-    user = await auth_service.read_user_by_email(email)
+    user = await user_service.read_user_by_email(email)
 ```
 
 **Why**: Proper lifecycle management, easy testing with `app.dependency_overrides`
@@ -703,11 +732,13 @@ async def endpoint(
 jwt_bearer = JWTBearer()
 json_encoder = JSONEncoder()
 password_encoder = PasswordEncoder()
+apikey_bearer = ApiKeyBearer()
 
 # Usage
 token = jwt_bearer.create_access_token(user_id)
 response = json_encoder.encode(data)
 hashed = password_encoder.hash(password)
+api_key = apikey_bearer.generate()
 ```
 
 **Why**: Stateless utilities don't need lifecycle management or injection
@@ -715,6 +746,7 @@ hashed = password_encoder.hash(password)
 #### ✅ Class-based Utilities
 All utilities are classes that encapsulate related functionality:
 - `JWTBearer`: JWT operations
+- `ApiKeyBearer`: API Key operations
 - `JSONEncoder`: JSON encoding with custom types
 - `PasswordEncoder`: Password hashing and verification
 
@@ -749,12 +781,12 @@ def get_database_manager() -> DatabaseManager:
 ```
 DatabaseManager (singleton with __new__)
     ↓ (injected via Depends)
-AuthService (per request via Depends)
+UserService / ApiKeyService (per request via Depends)
     ↓ (injected via Depends)
 Endpoints (request handlers)
 ```
 
-Utilities (`jwt_bearer`, `json_encoder`, `password_encoder`) are used directly without injection.
+Utilities (`jwt_bearer`, `apikey_bearer`, `json_encoder`, `password_encoder`) are used directly without injection.
 
 #### ❌ Anti-patterns to Avoid
 
@@ -874,12 +906,12 @@ async def endpoint(
 #### Testing pattern with dependency injection:
 ```python
 # In test file
-def test_endpoint(client, mock_auth_service):
-    mock_auth_service.method.return_value = expected_value
+def test_endpoint(client, mock_user_service):
+    mock_user_service.method.return_value = expected_value
     
     response = client.post("/endpoint", json={"data": "value"})
     assert response.status_code == 200
-    assert response.json()["detail"] == expected_value
+    assert response.json()["code"] == expected_value
 
 # For service tests
 @pytest.mark.asyncio
@@ -900,5 +932,5 @@ async def test_service_method():
 
 ---
 
-**Last updated**: October 20, 2025  
+**Last updated**: November 5, 2025  
 **Maintained by**: Secure Chain Team
