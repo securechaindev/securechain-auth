@@ -20,7 +20,7 @@ class ExceptionHandler:
                 msg = str(msg)
         detail = {
             "code": ResponseCode.VALIDATION_ERROR,
-            "message": ResponseMessage.VALIDATION_ERROR,
+            "message": msg,
         }
         logger.error(msg)
         return JSONResponse(status_code=422, content=detail)
@@ -30,7 +30,7 @@ class ExceptionHandler:
         request: Request,
         exc: HTTPException,
     ) -> JSONResponse | Response:
-        if isinstance(exc.detail, dict) and exc.detail.get("code"):
+        if isinstance(exc.detail, dict) and "code" in exc.detail:
             detail = exc.detail
         else:
             detail = {

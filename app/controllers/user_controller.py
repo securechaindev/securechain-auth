@@ -14,7 +14,7 @@ from app.schemas.auth import (
     SignUpRequest,
     VerifyTokenRequest,
 )
-from app.services import AuthService
+from app.services import UserService
 from app.settings import settings
 from app.utils import (
     JSONEncoder,
@@ -28,23 +28,23 @@ json_encoder = JSONEncoder()
 password_encoder = PasswordEncoder()
 
 
-def get_auth_service(db: DatabaseManager = Depends(get_database_manager)) -> AuthService:
-    return AuthService(db)
+def get_user_service(db: DatabaseManager = Depends(get_database_manager)) -> UserService:
+    return UserService(db)
 
 @router.post(
-    "/signup",
+    "/user/signup",
     summary="User Signup",
     description="Create a new user account.",
     response_description="User created successfully.",
-    tags=["Secure Chain Auth"]
+    tags=["Secure Chain Auth - User"],
 )
 @limiter.limit("25/minute")
 async def signup(
     request: Request,
     sign_up_request: SignUpRequest,
-    auth_service: AuthService = Depends(get_auth_service),
+    user_service: UserService = Depends(get_user_service),
 ) -> JSONResponse:
-    existing_user = await auth_service.read_user_by_email(sign_up_request.email)
+    existing_user = await user_service.read_user_by_email(sign_up_request.email)
     if existing_user:
         return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
@@ -55,7 +55,7 @@ async def signup(
                 }
             ),
         )
-    await auth_service.create_user({
+    await user_service.create_user({
         "email": sign_up_request.email,
         "password": password_encoder.hash(sign_up_request.password)
     })
@@ -71,19 +71,19 @@ async def signup(
 
 
 @router.post(
-    "/login",
+    "/user/login",
     summary="User Login",
     description="Authenticate a user with email and password.",
     response_description="Access token and user data.",
-    tags=["Secure Chain Auth"]
+    tags=["Secure Chain Auth - User"],
 )
 @limiter.limit("25/minute")
 async def login(
     request: Request,
     login_request: Annotated[LoginRequest, Body()],
-    auth_service: AuthService = Depends(get_auth_service),
+    user_service: UserService = Depends(get_user_service),
 ) -> JSONResponse:
-    user = await auth_service.read_user_by_email(login_request.email)
+    user = await user_service.read_user_by_email(login_request.email)
     if user is None:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -121,17 +121,17 @@ async def login(
 
 
 @router.post(
-    "/logout",
+    "/user/logout",
     summary="User Logout",
     description="Log out a user and revoke their refresh token.",
     response_description="Logout successful.",
-    tags=["Secure Chain Auth"],
-    dependencies=[Depends(jwt_bearer)]
+    tags=["Secure Chain Auth - User"],
+    dependencies=[Depends(jwt_bearer)],
 )
 @limiter.limit("25/minute")
 async def logout(
     request: Request,
-    auth_service: AuthService = Depends(get_auth_service),
+    user_service: UserService = Depends(get_user_service),
 ) -> JSONResponse:
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
@@ -142,7 +142,7 @@ async def logout(
                 "message": ResponseMessage.MISSING_REFRESH_TOKEN,
             }),
         )
-    await auth_service.create_revoked_token(refresh_token, jwt_bearer.read_expiration_date(refresh_token))
+    await user_service.create_revoked_token(refresh_token, jwt_bearer.read_expiration_date(refresh_token))
     response = JSONResponse(
         status_code=status.HTTP_200_OK,
         content=json_encoder.encode({
@@ -156,19 +156,19 @@ async def logout(
 
 
 @router.post(
-    "/account_exists",
+    "/user/account_exists",
     summary="User Account Existence Check",
     description="Check if a user account exists with the given email.",
     response_description="User existence status.",
-    tags=["Secure Chain Auth"]
+    tags=["Secure Chain Auth - User"],
 )
 @limiter.limit("25/minute")
 async def account_exists(
     request: Request,
     account_exists_request: AccountExistsRequest,
-    auth_service: AuthService = Depends(get_auth_service),
+    user_service: UserService = Depends(get_user_service),
 ) -> JSONResponse:
-    user = await auth_service.read_user_by_email(account_exists_request.email)
+    user = await user_service.read_user_by_email(account_exists_request.email)
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content=json_encoder.encode(
@@ -182,20 +182,20 @@ async def account_exists(
 
 
 @router.post(
-    "/change_password",
+    "/user/change_password",
     summary="User Change Password",
     description="Change the password for a user.",
     response_description="Password change status.",
-    tags=["Secure Chain Auth"],
-    dependencies=[Depends(jwt_bearer)]
+    tags=["Secure Chain Auth - User"],
+    dependencies=[Depends(jwt_bearer)],
 )
 @limiter.limit("25/minute")
 async def change_password(
     request: Request,
     change_password_request: ChangePasswordRequest,
-    auth_service: AuthService = Depends(get_auth_service),
+    user_service: UserService = Depends(get_user_service),
 ) -> JSONResponse:
-    user = await auth_service.read_user_by_email(change_password_request.email)
+    user = await user_service.read_user_by_email(change_password_request.email)
     if user is None:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -218,7 +218,7 @@ async def change_password(
         )
     encrypted_password = password_encoder.hash(change_password_request.new_password)
     user.password = encrypted_password
-    await auth_service.update_user_password(user)
+    await user_service.update_user_password(user)
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content=json_encoder.encode(
@@ -231,11 +231,11 @@ async def change_password(
 
 
 @router.post(
-    "/check_token",
+    "/user/check_token",
     summary="User Token Verification",
     description="Verify the validity of a user token.",
     response_description="Token verification status.",
-    tags=["Secure Chain Auth"],
+    tags=["Secure Chain Auth - User"],
 )
 @limiter.limit("25/minute")
 async def check_token(request: Request, verify_token_request: VerifyTokenRequest) -> JSONResponse:
@@ -290,16 +290,16 @@ async def check_token(request: Request, verify_token_request: VerifyTokenRequest
 
 
 @router.post(
-    "/refresh_token",
+    "/user/refresh_token",
     summary="User Refresh Token",
     description="Refresh a user's access token using a refresh token.",
     response_description="New access token.",
-    tags=["Secure Chain Auth"],
+    tags=["Secure Chain Auth - User"],
 )
 @limiter.limit("25/minute")
 async def refresh_token_endpoint(
     request: Request,
-    auth_service: AuthService = Depends(get_auth_service),
+    user_service: UserService = Depends(get_user_service),
 ) -> JSONResponse:
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
@@ -310,7 +310,7 @@ async def refresh_token_endpoint(
                 "message": ResponseMessage.MISSING_REFRESH_TOKEN,
             }),
         )
-    if await auth_service.is_token_revoked(refresh_token):
+    if await user_service.is_token_revoked(refresh_token):
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
             content=json_encoder.encode({

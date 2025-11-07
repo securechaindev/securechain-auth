@@ -4,7 +4,7 @@ from app.database import DatabaseManager
 from app.models.auth import RevokedToken, User
 
 
-class AuthService:
+class UserService:
     def __init__(self, db: DatabaseManager) -> None:
         self.driver = db.get_neo4j_driver()
         self.engine = db.get_odmantic_engine()

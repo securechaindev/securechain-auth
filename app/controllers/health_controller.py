@@ -13,7 +13,7 @@ json_encoder = JSONEncoder()
     summary="Health Check",
     description="Check the status of the API.",
     response_description="API status.",
-    tags=["Secure Chain Auth Health"]
+    tags=["Secure Chain Auth - Health"]
 )
 @limiter.limit("25/minute")
 async def health_check(request: Request) -> JSONResponse:

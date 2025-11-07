@@ -4,14 +4,12 @@ class DatabaseConfig:
     MAX_IDLE_TIME_MS = 60000
     DEFAULT_QUERY_TIMEOUT_MS = 30000
 
-    USERS_COLLECTION = "users"
-    REVOKED_TOKENS_COLLECTION = "revoked_tokens"
-
 class ResponseCode:
     # Error codes - General
     VALIDATION_ERROR = "validation_error"
     HTTP_ERROR = "http_error"
     INTERNAL_ERROR = "internal_error"
+    NOT_AUTHENTICATED = "not_authenticated"
 
     # Auth codes - Signup
     SIGNUP_SUCCESS = "signup_success"
@@ -38,20 +36,31 @@ class ResponseCode:
     TOKEN_MISSING = "token_missing"
     TOKEN_EXPIRED = "token_expired"
     TOKEN_INVALID = "token_invalid"
+    INVALID_TOKEN = "invalid_token"
     TOKEN_ERROR = "token_error"
     TOKEN_REVOKED = "token_revoked"
 
     # Auth codes - Refresh token
     REFRESH_TOKEN_SUCCESS = "refresh_token_success"
 
+    # API Key codes
+    API_KEY_CREATED = "api_key_created"
+    API_KEY_LIST_SUCCESS = "api_key_list_success"
+    API_KEY_REVOKED = "api_key_revoked"
+    API_KEY_NOT_FOUND = "api_key_not_found"
+    API_KEY_NAME_EXISTS = "api_key_name_exists"
+    MISSING_API_KEY = "missing_api_key"
+    INVALID_API_KEY = "invalid_api_key"
+    REVOKED_API_KEY = "revoked_api_key"
+
     # Health codes
     HEALTHY = "healthy"
 
 class ResponseMessage:
     # Error messages - General
-    VALIDATION_ERROR = "Validation error"
     HTTP_ERROR = "HTTP error"
     INTERNAL_ERROR = "Internal server error"
+    NOT_AUTHENTICATED = "Authentication required"
 
     # Auth messages - Signup
     SIGNUP_SUCCESS = "User account created successfully"
@@ -78,11 +87,22 @@ class ResponseMessage:
     TOKEN_MISSING = "Token is missing from request"
     TOKEN_EXPIRED = "Token has expired"
     TOKEN_INVALID = "Token is invalid"
+    INVALID_TOKEN = "Invalid token"
     TOKEN_ERROR = "An error occurred while verifying the token"
     TOKEN_REVOKED = "The refresh token has been revoked"
 
     # Auth messages - Refresh token
     REFRESH_TOKEN_SUCCESS = "Access token refreshed successfully"
+
+    # API Key messages
+    API_KEY_CREATED = "API key created successfully"
+    API_KEY_LIST_SUCCESS = "API keys retrieved successfully"
+    API_KEY_REVOKED = "API key revoked successfully"
+    API_KEY_NOT_FOUND = "API key not found"
+    API_KEY_NAME_EXISTS = "API key with name '{name}' already exists"
+    MISSING_API_KEY = "API key is missing"
+    INVALID_API_KEY = "Invalid API key"
+    REVOKED_API_KEY = "API key has been revoked"
 
     # Health messages
     HEALTHY = "API is running and healthy"

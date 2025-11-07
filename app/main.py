@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     lifespan=lifespan,
-    title="Secure Chain User Backend",
+    title="Secure Chain Auth Backend",
     docs_url=settings.DOCS_URL,
     version="1.1.1",
     description=DESCRIPTION,
