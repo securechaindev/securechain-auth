@@ -111,7 +111,6 @@ async def login(
     response = JSONResponse(
         status_code=status.HTTP_200_OK,
         content=json_encoder.encode({
-            "user_id": user_id,
             "code": ResponseCode.LOGIN_SUCCESS,
             "message": ResponseMessage.LOGIN_SUCCESS,
         }),
@@ -250,12 +249,11 @@ async def check_token(request: Request, verify_token_request: VerifyTokenRequest
             }),
         )
     try:
-        payload = jwt_bearer.verify_access_token(token)
+        jwt_bearer.verify_access_token(token)
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content=json_encoder.encode({
                 "valid": True,
-                "user_id": payload.get("user_id"),
                 "code": ResponseCode.TOKEN_VALID,
                 "message": ResponseMessage.TOKEN_VALID,
             }),
@@ -320,7 +318,7 @@ async def refresh_token_endpoint(
         )
     try:
         payload = jwt_bearer.verify_refresh_token(refresh_token)
-        new_access_token = jwt_bearer.create_access_token(payload["user_id"])
+        new_access_token = jwt_bearer.create_access_token(payload.get("user_id"))
         response = JSONResponse(
             status_code=status.HTTP_200_OK,
             content=json_encoder.encode({

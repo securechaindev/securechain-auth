@@ -91,7 +91,6 @@ def test_login_success(client, mock_user_service):
         assert response.status_code == 200
         assert response.json()["code"] == "login_success"
         assert "message" in response.json()
-        assert "user_id" in response.json()
 
 
 # --- LOGOUT ---
