@@ -5,7 +5,7 @@
 ## 📋 General Information
 
 - **Project Name**: securechain-auth
-- **Version**: 1.1.1
+- **Version**: 1.1.2
 - **Description**: Authentication and user registration backend for Secure Chain tools
 - **Framework**: FastAPI 0.116.1
 - **Python**: 3.13+
