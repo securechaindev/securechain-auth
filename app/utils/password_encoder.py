@@ -1,4 +1,4 @@
-from bcrypt import gensalt, hashpw, checkpw
+from bcrypt import checkpw, gensalt, hashpw
 
 
 class PasswordEncoder:

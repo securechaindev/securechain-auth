@@ -31,7 +31,7 @@ app = FastAPI(
     lifespan=lifespan,
     title="Secure Chain Auth Backend",
     docs_url=settings.DOCS_URL,
-    version="1.1.2",
+    version="1.1.3",
     description=DESCRIPTION,
     contact={
         "name": "Secure Chain Team",
