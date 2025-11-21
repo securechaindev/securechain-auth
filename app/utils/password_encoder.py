@@ -1,12 +1,10 @@
-from passlib.context import CryptContext
+from bcrypt import gensalt, hashpw, checkpw
 
 
 class PasswordEncoder:
-    def __init__(self):
-        self.context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
     def hash(self, password: str) -> str:
-        return self.context.hash(password)
+        salt = gensalt()
+        return hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
     def verify(self, password: str, hashed_pass: str) -> bool:
-        return self.context.verify(password, hashed_pass)
+        return checkpw(password.encode('utf-8'), hashed_pass.encode('utf-8'))
