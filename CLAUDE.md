@@ -51,7 +51,7 @@ tests/
 
 **IMPORTANT: No ORM - Direct MongoDB dict operations**
 - **Removed**: odmantic (incompatible with Python 3.14)
-- **Current**: Work directly with dicts using pymongo AsyncIOMotorClient
+- **Current**: Work directly with dicts using pymongo AsyncMongoClient
 - **Models**: Deleted `app/models/` directory - validation only in Pydantic schemas
 - **Services**: Return/accept plain dicts with MongoDB structure (`{"_id": ObjectId(), ...}`)
 
@@ -86,7 +86,7 @@ async def endpoint(user_service: UserService = Depends(get_user_service)):
 class UserService:
     def __init__(self, db: DatabaseManager):
         self.driver = db.get_neo4j_driver()
-        self.users_collection = db.get_users_collection()  # AsyncIOMotorCollection
+        self.users_collection = db.get_users_collection()  # AsyncCollection
         self.revoked_tokens_collection = db.get_revoked_tokens_collection()
 
     async def read_user_by_email(self, email: str) -> dict | None:
@@ -104,7 +104,7 @@ class UserService:
 ```python
 class DatabaseManager:
     _instance: "DatabaseManager | None" = None
-    _mongo_client: AsyncIOMotorClient | None = None
+    _mongo_client: AsyncMongoClient | None = None
     _neo4j_driver: AsyncDriver | None = None
 
     def __new__(cls) -> "DatabaseManager":
@@ -126,7 +126,7 @@ class DatabaseManager:
 
 ### Core
 - FastAPI 0.116.1, Uvicorn 0.35.0, Pydantic 2.10.1
-- MongoDB: pymongo + motor 3.7.1 (async driver)
+- MongoDB: pymongo 4.15.4 (async driver)
 - Neo4j 5.28.1 (graph database)
 - PyJWT 2.10.1, bcrypt 5.0.0 (direct usage, no passlib)
 - slowapi 0.1.9 (rate limiting)
