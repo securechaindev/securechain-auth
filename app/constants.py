@@ -1,9 +1,3 @@
-class DatabaseConfig:
-    MIN_POOL_SIZE = 5
-    MAX_POOL_SIZE = 50
-    MAX_IDLE_TIME_MS = 60000
-    DEFAULT_QUERY_TIMEOUT_MS = 30000
-
 class ResponseCode:
     # Error codes - General
     VALIDATION_ERROR = "validation_error"

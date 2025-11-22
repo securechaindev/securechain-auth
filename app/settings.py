@@ -22,6 +22,15 @@ class Settings(BaseSettings):
     JWT_ACCESS_SECRET_KEY: str = ""
     JWT_REFRESH_SECRET_KEY: str = ""
 
+    # Database Configuration
+    DB_MIN_POOL_SIZE: int = 10
+    DB_MAX_POOL_SIZE: int = 100
+    DB_MAX_IDLE_TIME_MS: int = 60000
+    DB_DEFAULT_QUERY_TIMEOUT_MS: int = 30000
+    DB_USERS_COLLECTION: str = "users"
+    DB_REVOKED_TOKENS_COLLECTION: str = "revoked_tokens"
+    DB_API_KEYS_COLLECTION: str = "api_keys"
+
 
 @lru_cache
 def get_settings() -> Settings:
