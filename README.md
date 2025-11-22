@@ -31,7 +31,7 @@ An authentication service for Secure Chain tools, built with FastAPI. This servi
 1. [Docker](https://www.docker.com/) to deploy the tool.
 2. [Docker Compose](https://docs.docker.com/compose/) for container orchestration.
 3. It is recommended to use a GUI such as [MongoDB Compass](https://www.mongodb.com/en/products/compass).
-4. Python 3.13 or higher.
+4. Python 3.14 or higher.
 5. [uv](https://github.com/astral-sh/uv) - Ultra-fast Python package manager (optional but recommended).
 
 ## Setup development profile
@@ -89,7 +89,7 @@ curl "https://securechain.dev/api/some_endpoint" -H "X-API-Key: sk_your_api_key_
 ```
 
 ## Python Environment
-The project uses Python 3.13 and the dependencies are managed with `uv` (ultra-fast Python package manager).
+The project uses Python 3.14 and the dependencies are managed with `uv` (ultra-fast Python package manager).
 
 ### Setting up the development environment using uv
 
