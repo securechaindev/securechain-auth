@@ -5,7 +5,6 @@ from fastapi import HTTPException, Request, status
 from fastapi.security import HTTPBearer
 
 from app.constants import ResponseCode, ResponseMessage
-from app.models.auth import ApiKey
 
 
 class ApiKeyBearer(HTTPBearer):
@@ -51,9 +50,10 @@ class ApiKeyBearer(HTTPBearer):
         key_hash = self.hash(api_key)
 
         db_manager = request.app.state.db_manager
-        engine = db_manager.get_odmantic_engine()
+        db = db_manager.get_mongo_db()
+        api_keys_collection = db["api_keys"]
 
-        stored_key = await engine.find_one(ApiKey, ApiKey.key_hash == key_hash)
+        stored_key = await api_keys_collection.find_one({"key_hash": key_hash})
 
         if not stored_key:
             raise HTTPException(
@@ -64,7 +64,7 @@ class ApiKeyBearer(HTTPBearer):
                 },
             )
 
-        if not stored_key.is_active:
+        if not stored_key.get("is_active", True):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail={
@@ -73,4 +73,4 @@ class ApiKeyBearer(HTTPBearer):
                 },
             )
 
-        return {"user_id": stored_key.user_id}
+        return {"user_id": stored_key["user_id"]}
