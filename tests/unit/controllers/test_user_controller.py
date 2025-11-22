@@ -1,9 +1,8 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from bson import ObjectId
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
-
-from app.models.auth import User
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -71,7 +70,11 @@ def test_login_user_not_exist(client, mock_user_service):
 
 
 def test_login_wrong_password(client, mock_user_service):
-    mock_user_service.read_user_by_email.return_value = User(email="test@example.com", password="hashed")
+    mock_user_service.read_user_by_email.return_value = {
+        "_id": ObjectId(),
+        "email": "test@example.com",
+        "password": "hashed"
+    }
 
     with patch("app.controllers.user_controller.password_encoder.verify", return_value=False):
         response = client.post("/user/login", json={"email": "test@example.com", "password": "15pAssword*"})
@@ -81,7 +84,11 @@ def test_login_wrong_password(client, mock_user_service):
 
 
 def test_login_success(client, mock_user_service):
-    mock_user_service.read_user_by_email.return_value = User(email="test@example.com", password="hashed")
+    mock_user_service.read_user_by_email.return_value = {
+        "_id": ObjectId(),
+        "email": "test@example.com",
+        "password": "hashed"
+    }
 
     with patch("app.controllers.user_controller.password_encoder.verify", return_value=True), \
          patch("app.controllers.user_controller.jwt_bearer.create_access_token", return_value="access"), \
@@ -153,7 +160,11 @@ def test_change_password_user_not_exist(client, mock_user_service):
 
 
 def test_change_password_invalid_old_password(client, mock_user_service):
-    mock_user_service.read_user_by_email.return_value = User(email="test@example.com", password="hashed")
+    mock_user_service.read_user_by_email.return_value = {
+        "_id": ObjectId(),
+        "email": "test@example.com",
+        "password": "hashed"
+    }
 
     with patch("app.controllers.user_controller.password_encoder.verify", return_value=False):
         headers = {"Authorization": "Bearer faketoken"}
@@ -166,7 +177,11 @@ def test_change_password_invalid_old_password(client, mock_user_service):
 
 
 def test_change_password_success(client, mock_user_service):
-    mock_user_service.read_user_by_email.return_value = User(email="test@example.com", password="hashed")
+    mock_user_service.read_user_by_email.return_value = {
+        "_id": ObjectId(),
+        "email": "test@example.com",
+        "password": "hashed"
+    }
     mock_user_service.update_user_password.return_value = None
 
     with patch("app.controllers.user_controller.password_encoder.verify", return_value=True), \
