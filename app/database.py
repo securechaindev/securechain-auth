@@ -28,7 +28,7 @@ class DatabaseManager:
                 maxIdleTimeMS=settings.DB_MAX_IDLE_TIME_MS,
                 serverSelectionTimeoutMS=settings.DB_DEFAULT_QUERY_TIMEOUT_MS,
             )
-            self.mongo_db = self.mongo_client["securechain"]
+            self.securechain_db = self.mongo_client["securechain"]
             logger.info("MongoDB connection pool initialized")
 
         if self.neo4j_driver is None:
@@ -45,7 +45,7 @@ class DatabaseManager:
             logger.info("Closing MongoDB connection...")
             self.mongo_client.close()
             self.mongo_client = None
-            self.mongo_db = None
+            self.securechain_db = None
             logger.info("MongoDB connection closed")
 
         if self.neo4j_driver:
