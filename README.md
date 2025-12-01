@@ -136,21 +136,17 @@ uv run pytest -v
 uv run pytest --cov=app --cov-report=html
 ```
 
-## Contributing
-Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
-
-### Install dev dependencies
-
-With uv:
+## Code Quality
 ```bash
+# Install linter
 uv sync --extra dev
-# Or
-uv pip install ".[dev]"
-```
 
-### Run linting
-```bash
-uv run ruff check .
+# Linting
+uv ruff check app/
+
+# Formatting
+uv ruff format app/
+```uff check .
 ```
 
 ### Code style
@@ -160,6 +156,9 @@ This project follows:
 - Comprehensive docstrings
 - Single Responsibility Principle
 - Dependency Injection pattern
+
+## Contributing
+Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
 
 ## License
 [GNU General Public License 3.0](https://www.gnu.org/licenses/gpl-3.0.html)
