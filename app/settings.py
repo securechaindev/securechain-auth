@@ -1,26 +1,24 @@
 from functools import lru_cache
 
-from pydantic import ConfigDict
+from pydantic import ConfigDict, Field
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     model_config = ConfigDict(env_file=".env")
 
-    GRAPH_DB_URI: str = ""
-    GRAPH_DB_USER: str = ""
-    GRAPH_DB_PASSWORD: str = ""
-    VULN_DB_URI: str = ""
-    VULN_DB_USER: str = ""
-    VULN_DB_PASSWORD: str = ""
-    DOCS_URL: str | None = None
-    SERVICES_ALLOWED_ORIGINS: list[str] = []
-    SECURE_COOKIES: bool = True
-    ALGORITHM: str = ""
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 0
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 0
-    JWT_ACCESS_SECRET_KEY: str = ""
-    JWT_REFRESH_SECRET_KEY: str = ""
+    GRAPH_DB_URI: str = Field("bolt://neo4j:7687", alias="GRAPH_DB_URI")
+    GRAPH_DB_USER: str = Field("neo4j", alias="GRAPH_DB_USER")
+    GRAPH_DB_PASSWORD: str = Field("neoSecureChain", alias="GRAPH_DB_PASSWORD")
+    VULN_DB_URI: str = Field("mongodb://mongoSecureChain:mongoSecureChain@mongo:27017/admin", alias="VULN_DB_URI")
+    DOCS_URL: str | None =  Field(None, alias="DOCS_URL")
+    SERVICES_ALLOWED_ORIGINS: list[str] =  Field(["*"], alias="SERVICES_ALLOWED_ORIGINS")
+    SECURE_COOKIES: bool = Field(True, alias="SECURE_COOKIES")
+    ALGORITHM: str = Field("HS256", alias="ALGORITHM")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(15, alias="ACCESS_TOKEN_EXPIRE_MINUTES")
+    REFRESH_TOKEN_EXPIRE_DAYS: int = Field(7, alias="REFRESH_TOKEN_EXPIRE_DAYS")
+    JWT_ACCESS_SECRET_KEY: str = Field("your_access_secret_key", alias="JWT_ACCESS_SECRET_KEY")
+    JWT_REFRESH_SECRET_KEY: str = Field("your_refresh_secret_key", alias="JWT_REFRESH_SECRET_KEY")
 
     # Database Configuration
     DB_MIN_POOL_SIZE: int = 10
