@@ -109,13 +109,6 @@ The project uses Python 3.14 and the dependencies are managed with `uv` (ultra-f
    uv sync
    ```
 
-4. **Install dev dependencies**:
-   ```bash
-   uv sync --extra dev
-   # Or using pip-like syntax
-   uv pip install ".[dev]"
-   ```
-
 ## Testing
 
 ### Install test dependencies
@@ -123,8 +116,6 @@ The project uses Python 3.14 and the dependencies are managed with `uv` (ultra-f
 With uv:
 ```bash
 uv sync --extra test
-# Or
-uv pip install ".[test]"
 ```
 
 ### Run tests
