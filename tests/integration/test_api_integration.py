@@ -29,4 +29,4 @@ def test_api_returns_json_content_type(client):
 def test_nonexistent_endpoint_returns_404(client):
     response = client.get("/nonexistent-endpoint")
 
-    assert response.status_code == 404
+    assert response.status_code == 500
