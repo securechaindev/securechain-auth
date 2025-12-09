@@ -43,7 +43,7 @@ class DatabaseManager:
     async def close(self) -> None:
         if self.mongo_client:
             logger.info("Closing MongoDB connection...")
-            self.mongo_client.close()
+            await self.mongo_client.close()
             self.mongo_client = None
             self.securechain_db = None
             logger.info("MongoDB connection closed")
