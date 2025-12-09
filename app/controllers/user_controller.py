@@ -94,7 +94,7 @@ async def login(
                 }
             ),
         )
-    hashed_pass = user.get("password")
+    hashed_pass = user.get("password", "")
     if not password_encoder.verify(login_request.password, hashed_pass):
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -205,7 +205,7 @@ async def change_password(
                 }
             ),
         )
-    if not password_encoder.verify(change_password_request.old_password, user.get("password")):
+    if not password_encoder.verify(change_password_request.old_password, user.get("password", "")):
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content=json_encoder.encode(
@@ -317,7 +317,7 @@ async def refresh_token_endpoint(
         )
     try:
         payload = jwt_bearer.verify_refresh_token(refresh_token)
-        new_access_token = jwt_bearer.create_access_token(payload.get("user_id"))
+        new_access_token = jwt_bearer.create_access_token(payload.get("user_id", ""))
         response = JSONResponse(
             status_code=status.HTTP_200_OK,
             content=json_encoder.encode({

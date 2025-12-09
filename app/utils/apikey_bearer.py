@@ -24,7 +24,7 @@ class ApiKeyBearer(HTTPBearer):
     def verify(api_key: str, key_hash: str) -> bool:
         return hashlib.sha256(api_key.encode()).hexdigest() == key_hash
 
-    async def __call__(self, request: Request) -> dict[str, str]:
+    async def __call__(self, request: Request) -> dict[str, str] | None:
         api_key = request.headers.get("X-API-Key")
 
         if not api_key:
