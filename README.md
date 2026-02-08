@@ -43,7 +43,7 @@ cd securechain-auth
 ```
 
 ### 2. Configure environment variables
-Create a `.env` file from the `template.env` file and place it in the `app/` directory. Modify the **Json Web Token (JWT)** secret key and algorithm with your own. You can generate your own secret key with the command **openssl rand -base64 32**.
+Create a `.env` file from the `.env.template` file and place it in the `app/` directory. Modify the **Json Web Token (JWT)** secret key and algorithm with your own. You can generate your own secret key with the command **openssl rand -base64 32**.
 
 ### 3. Create Docker network
 Ensure you have the `securechain` Docker network created. If not, create it with:
