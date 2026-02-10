@@ -60,25 +60,6 @@ docker compose -f dev/docker-compose.yml up --build
 ### 5. Access the application
 The API will be available at [http://localhost:8001](http://localhost:8002). You can access the API documentation at [http://localhost:8001/docs](http://localhost:8002/docs).
 
-## API Endpoints
-
-### User Authentication
-- `POST /api/user/signup` - Register a new user
-- `POST /api/user/login` - Login and receive JWT tokens
-- `POST /api/user/logout` - Logout and revoke refresh token
-- `POST /api/user/refresh_token` - Refresh access token
-- `POST /api/user/check_token` - Validate access token
-- `POST /api/user/change_password` - Change user password
-- `POST /api/user/account_exists` - Check if account exists
-
-### API Key Management
-- `POST /api/api-keys/create` - Create a new API Key (requires JWT)
-- `GET /api/api-keys/list` - List all API Keys for authenticated user (requires JWT)
-- `PATCH /api/api-keys/{key_id}/revoke` - Revoke an API Key (requires JWT)
-
-### Health
-- `GET /health` - Service health check
-
 ## API Key Authentication (for services)
 Used by microservices for service-to-service communication:
 
@@ -88,8 +69,9 @@ Used by microservices for service-to-service communication:
 curl "https://securechain.dev/api/some_endpoint" -H "X-API-Key: sk_your_api_key_here"
 ```
 
-## Python Environment
-The project uses Python 3.14 and the dependencies are managed with `uv` (ultra-fast Python package manager).
+## Development Environment
+
+The project uses Python 3.14 and [uv](https://github.com/astral-sh/uv) as the package manager for faster and more reliable dependency management.
 
 ### Setting up the development environment using uv
 
@@ -111,23 +93,25 @@ The project uses Python 3.14 and the dependencies are managed with `uv` (ultra-f
 
 ## Testing
 
-### Install test dependencies
-
-With uv:
 ```bash
+# Install test dependencies
 uv sync --extra test
-```
 
-### Run tests
-```bash
 # Run all tests
-uv run pytest -v
+uv run pytest
 
-# Run with coverage
-uv run pytest --cov=app --cov-report=html
+# Run tests with coverage report
+uv run pytest --cov=app --cov-report=term-missing --cov-report=html
+
+# Run specific test file
+uv run pytest tests/unit/controllers/test_graph_controller.py -v
+
+# Run only unit tests
+uv run pytest tests/unit/ -v
 ```
 
 ## Code Quality
+
 ```bash
 # Install linter
 uv sync --extra dev
@@ -139,16 +123,9 @@ uv run ruff check app/
 uv run ruff format app/
 ```
 
-### Code style
-This project follows:
-- PEP 8 style guide
-- Type hints for all functions
-- Comprehensive docstrings
-- Single Responsibility Principle
-- Dependency Injection pattern
-
 ## Contributing
-Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
+
+Pull requests are welcome! To contribute follow this [guidelines](https://securechaindev.github.io/contributing.html).
 
 ## License
 [GNU General Public License 3.0](https://www.gnu.org/licenses/gpl-3.0.html)
