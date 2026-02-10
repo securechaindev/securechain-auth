@@ -133,11 +133,10 @@ uv run pytest --cov=app --cov-report=html
 uv sync --extra dev
 
 # Linting
-uv ruff check app/
+uv run ruff check app/
 
 # Formatting
-uv ruff format app/
-```uff check .
+uv run ruff format app/
 ```
 
 ### Code style
